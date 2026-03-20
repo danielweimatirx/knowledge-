@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知识库详情 - NL2SQL</title>
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --border: #334155; --accent: #38bdf8; --green: #4ade80; --red: #f87171; --text: #e2e8f0; --muted: #94a3b8; --purple: #8b5cf6; --yellow: #fbbf24; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .top-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .top-bar h1 { font-size: 1.3rem; color: #fff; }
+  .top-bar .nav { font-size: 0.85rem; margin-left: auto; display: flex; gap: 16px; }
+
+  /* 知识库信息卡 */
+  .kb-info { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+  .kb-info .name { font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .kb-info .usage { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+  .kb-meta { display: flex; gap: 20px; font-size: 0.78rem; color: var(--muted); flex-wrap: wrap; margin-bottom: 14px; }
+  .kb-meta span { display: flex; align-items: center; gap: 4px; }
+  .tables-section { margin-top: 10px; }
+  .tables-section h3 { font-size: 0.82rem; color: var(--accent); margin-bottom: 8px; }
+  .table-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .table-chip { background: rgba(139,92,246,0.12); color: var(--purple); padding: 4px 12px; border-radius: 6px; font-size: 0.8rem; font-family: 'SF Mono', monospace; }
+
+  /* 知识条目 */
+  .section-title { font-size: 1rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-title .count { font-size: 0.78rem; color: var(--muted); font-weight: 400; }
+
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-btn { padding: 5px 14px; border-radius: 16px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.78rem; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .filter-btn.active, .filter-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  .nk-list { display: flex; flex-direction: column; gap: 10px; }
+  .nk-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color .15s; }
+  .nk-card:hover { border-color: var(--accent); }
+  .nk-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .nk-header .nk-name { font-weight: 600; font-size: 0.9rem; color: #fff; }
+  .nk-header .nk-id { font-size: 0.72rem; color: var(--muted); }
+  .type-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .type-logic { background: rgba(74,222,128,0.12); color: var(--green); }
+  .type-sql { background: rgba(56,189,248,0.12); color: var(--accent); }
+  .type-other { background: rgba(251,191,36,0.12); color: var(--yellow); }
+
+  .nk-key { font-size: 0.84rem; color: var(--text); line-height: 1.7; margin-bottom: 8px; white-space: pre-wrap; word-break: break-all; }
+  .nk-key.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .expand-btn { font-size: 0.75rem; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; margin-bottom: 8px; }
+
+  .nk-detail-row { display: flex; gap: 16px; font-size: 0.75rem; color: var(--muted); flex-wrap: wrap; }
+  .nk-detail-row .label { color: var(--muted); }
+  .nk-assoc { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .nk-assoc-tag { background: rgba(139,92,246,0.1); color: var(--purple); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+
+  .nk-value { margin-top: 8px; background: #020617; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-size: 0.78rem; font-family: 'SF Mono', monospace; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: var(--muted); display: none; }
+
+  .loading { text-align: center; padding: 60px; color: var(--muted); }
+  .error-msg { text-align: center; padding: 40px; color: #f87171; }
+  .empty { text-align: center; padding: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1 id="pageTitle">知识库详情</h1>
+  <div class="nav">
+    <a href="javascript:history.back()">← 返回列表</a>
+    <a href="/">迁移控制台</a>
+  </div>
+</div>
+
+<div id="kbInfo"></div>
+<div id="nkSection"></div>
+
+<script>
+const KB_ID = {{ kb_id }};
+const params = new URLSearchParams(location.search);
+const TARGET = params.get('target') || 'remote';
+let allItems = [];
+let currentFilter = 'all';
+
+async function load() {
+  document.getElementById('kbInfo').innerHTML = '<div class="loading">加载中…</div>';
+
+  try {
+    const res = await fetch(`/api/kb/${KB_ID}?target=${TARGET}`);
+    const d = await res.json();
+    if (!d.ok) {
+      document.getElementById('kbInfo').innerHTML = `<div class="error-msg">❌ ${d.msg}</div>`;
+      return;
+    }
+
+    renderKbInfo(d.knowledge_base);
+    allItems = d.knowledge_items || [];
+    renderKnowledgeItems(allItems);
+  } catch(e) {
+    document.getElementById('kbInfo').innerHTML = `<div class="error-msg">❌ ${e.message}</div>`;
+  }
+}
+
+function renderKbInfo(kb) {
+  document.getElementById('pageTitle').textContent = kb.name;
+  document.title = kb.name + ' - NL2SQL';
+
+  let tableNames = [];
+  try { JSON.parse(kb.tables_json || '[]').forEach(t => tableNames.push(...(t.table_names || []))); } catch(e) {}
+
+  document.getElementById('kbInfo').innerHTML = `
+    <div class="kb-info">
+      <div class="name">${esc(kb.name)} <span style="font-size:0.78rem;color:var(--muted);font-weight:400">#${kb.id}</span></div>
+      <div class="usage">${esc(kb.usage_notes || '暂无用途说明')}</div>
+      <div class="kb-meta">
+        <span>👤 创建人: ${esc(kb.created_by)}</span>
+        <span>✏️ 更新人: ${esc(kb.updated_by)}</span>
+        <span>📅 创建: ${(kb.created_at||'').replace('T',' ')}</span>
+        <span>📅 更新: ${(kb.updated_at||'').replace('T',' ')}</span>
+      </div>
+      ${tableNames.length ? `
+        <div class="tables-section">
+          <h3>关联表 (${tableNames.length})</h3>
+          <div class="table-chips">${tableNames.map(n => `<span class="table-chip">${esc(n)}</span>`).join('')}</div>
+        </div>` : ''}
+    </div>`;
+}
+
+function renderKnowledgeItems(items) {
+  const wrap = document.getElementById('nkSection');
+
+  // 收集所有 knowledge_type
+  const types = [...new Set(items.map(i => i.knowledge_type))];
+
+  let filterHtml = `<div class="filter-bar">
+    <button class="filter-btn ${currentFilter==='all'?'active':''}" onclick="filterBy('all')">全部 (${allItems.length})</button>`;
+  types.forEach(t => {
+    const cnt = allItems.filter(i => i.knowledge_type === t).length;
+    filterHtml += `<button class="filter-btn ${currentFilter===t?'active':''}" onclick="filterBy('${t}')">${esc(t)} (${cnt})</button>`;
+  });
+  filterHtml += '</div>';
+
+  if (!items.length) {
+    wrap.innerHTML = `
+      <div class="section-title">知识条目 <span class="count">(0)</span></div>
+      ${filterHtml}
+      <div class="empty">该知识库下暂无知识条目</div>`;
+    return;
+  }
+
+  let html = `<div class="section-title">知识条目 <span class="count">(${items.length})</span></div>`;
+  html += filterHtml;
+  html += '<div class="nk-list">';
+
+  items.forEach((nk, idx) => {
+    const typeClass = nk.knowledge_type === 'logic' ? 'type-logic' : nk.knowledge_type === 'sql' ? 'type-sql' : 'type-other';
+    let assocTables = [];
+    try { assocTables = JSON.parse(nk.associate_tables || '[]'); } catch(e) {}
+
+    html += `
+      <div class="nk-card">
+        <div class="nk-header">
+          <span class="type-badge ${typeClass}">${esc(nk.knowledge_type)}</span>
+          ${nk.name ? `<span class="nk-name">${esc(nk.name)}</span>` : ''}
+          <span class="nk-id">#${nk.id}</span>
+          ${nk.explanation_type ? `<span style="font-size:0.72rem;color:var(--muted)">解释类型: ${esc(nk.explanation_type)}</span>` : ''}
+        </div>
+        <div class="nk-key collapsed" id="key-${idx}">${esc(nk.knowledge_key)}</div>
+        <button class="expand-btn" onclick="toggleExpand(${idx})">展开全文 ▼</button>
+        ${assocTables.length ? `<div class="nk-assoc">${assocTables.map(t => `<span class="nk-assoc-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+        <div class="nk-detail-row">
+          <span>👤 ${esc(nk.created_by)}</span>
+          <span>📅 ${(nk.updated_at||'').replace('T',' ')}</span>
+        </div>
+        ${nk.knowledge_value ? `<button class="expand-btn" onclick="toggleValue(${idx})" style="margin-top:6px">查看 knowledge_value ▼</button><div class="nk-value" id="val-${idx}">${esc(nk.knowledge_value)}</div>` : ''}
+      </div>`;
+  });
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function toggleExpand(idx) {
+  const el = document.getElementById('key-' + idx);
+  const btn = el.nextElementSibling;
+  if (el.classList.contains('collapsed')) {
+    el.classList.remove('collapsed');
+    btn.textContent = '收起 ▲';
+  } else {
+    el.classList.add('collapsed');
+    btn.textContent = '展开全文 ▼';
+  }
+}
+
+function toggleValue(idx) {
+  const el = document.getElementById('val-' + idx);
+  const btn = el.previousElementSibling;
+  if (el.style.display === 'none' || !el.style.display) {
+    el.style.display = 'block';
+    btn.textContent = '隐藏 knowledge_value ▲';
+  } else {
+    el.style.display = 'none';
+    btn.textContent = '查看 knowledge_value ▼';
+  }
+}
+
+function filterBy(type) {
+  currentFilter = type;
+  const filtered = type === 'all' ? allItems : allItems.filter(i => i.knowledge_type === type);
+  renderKnowledgeItems(filtered);
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+load();
+</script>
+</body>
+</html>
