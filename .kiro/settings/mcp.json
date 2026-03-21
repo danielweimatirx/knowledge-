@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "memoria": {
+      "_version": "0.2.2",
+      "args": [
+        "mcp",
+        "--tool",
+        "kiro",
+        "--api-url",
+        "http://memoria-api.cn-qa.matrixorigin.cn",
+        "--token",
+        "sk-f8a9c60eee7746ccadc4c8d4e096e84e"
+      ],
+      "command": "memoria"
+    }
+  }
+}

@@ -3,125 +3,497 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NL2SQL 迁移控制台</title>
+<title>NL2SQL 知识库管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #0f172a; --card: #1e293b; --border: #334155; --accent: #38bdf8; --green: #4ade80; --red: #f87171; --text: #e2e8f0; --muted: #94a3b8; }
+  :root {
+    --bg: #f5f0e8; --bg-deep: #ebe4d6; --card: #fffcf5;
+    --border: #d4c9b4; --border-light: #e8dfd0;
+    --accent: #5a7a5a; --accent-light: #7a9e7a; --accent-glow: rgba(90,122,90,0.12);
+    --warm: #c17f4e; --warm-light: rgba(193,127,78,0.1);
+    --clay: #b85c3a; --clay-light: rgba(184,92,58,0.08);
+    --green: #4a7a4a; --green-light: rgba(74,122,74,0.1);
+    --red: #b85c3a; --red-light: rgba(184,92,58,0.1);
+    --text: #3d3428; --text-secondary: #6b5e4f; --muted: #9a8b78;
+    --shadow: 0 2px 20px rgba(61,52,40,0.06);
+    --shadow-hover: 0 8px 32px rgba(61,52,40,0.1);
+    --radius: 16px; --radius-sm: 10px; --radius-xs: 6px;
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
-  h1 { font-size: 1.4rem; margin-bottom: 20px; color: var(--accent); }
-  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
-  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  label { color: var(--muted); font-size: 0.85rem; }
-  select, button { font-family: inherit; font-size: 0.9rem; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
-  button { background: var(--accent); color: var(--bg); font-weight: 600; border: none; transition: opacity .15s; }
-  button:hover { opacity: 0.85; }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-data { background: #8b5cf6; }
-  .checkbox-wrap { display: flex; align-items: center; gap: 6px; }
-  .checkbox-wrap input { width: 16px; height: 16px; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0; opacity: 0.3; pointer-events: none; z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
 
-  /* Status badge */
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
-  .badge-idle { background: var(--border); color: var(--muted); }
-  .badge-running { background: #1e3a5f; color: var(--accent); animation: pulse 1.2s infinite; }
-  .badge-success { background: #14532d; color: var(--green); }
-  .badge-error { background: #450a0a; color: var(--red); }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+  /* ===== Global header ===== */
+  .global-header {
+    background: var(--card); border-bottom: 1px solid var(--border-light);
+    padding: 20px 28px; position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 1px 12px rgba(61,52,40,0.04);
+  }
+  .header-inner {
+    max-width: 1400px; margin: 0 auto;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  }
+  .header-inner h1 {
+    font-family: var(--font-display); font-size: 1.4rem; font-weight: 400;
+    color: var(--text); letter-spacing: -0.01em;
+  }
+  .header-inner h1 span { color: var(--accent); }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .header-right label { font-size: 0.75rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  select {
+    font-family: var(--font-body); font-size: 0.85rem; padding: 7px 30px 7px 12px;
+    border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); cursor: pointer; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%239a8b78' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; transition: border-color 0.2s;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
 
-  /* Log area */
-  .log-box { background: #020617; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 12px; max-height: 400px; overflow-y: auto; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
-  .log-box .warn { color: #fbbf24; }
-  .log-box .ok { color: var(--green); }
-  .log-box .fail { color: var(--red); }
-  .log-box .skip { color: var(--muted); }
+  /* ===== Main nav tabs ===== */
+  .main-nav {
+    max-width: 1400px; margin: 0 auto; padding: 0 28px;
+    display: flex; gap: 0; border-bottom: 1px solid var(--border-light);
+    background: var(--card);
+  }
+  .nav-tab {
+    font-family: var(--font-body); font-size: 0.88rem; font-weight: 500;
+    padding: 14px 28px; border: none; background: none; color: var(--muted);
+    cursor: pointer; position: relative; transition: color 0.2s;
+    letter-spacing: 0.01em;
+  }
+  .nav-tab:hover { color: var(--text); transform: none; }
+  .nav-tab.active { color: var(--accent); }
+  .nav-tab.active::after {
+    content: ''; position: absolute; bottom: -1px; left: 16px; right: 16px;
+    height: 2px; background: var(--accent); border-radius: 2px;
+  }
 
-  /* KB list cards */
-  .kb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-  .kb-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; transition: border-color .2s, transform .15s; cursor: pointer; display: flex; flex-direction: column; }
-  .kb-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .kb-card h3 { font-size: 0.95rem; margin-bottom: 6px; color: #fff; }
-  .kb-card h3 .kid { font-size: 0.72rem; color: var(--muted); font-weight: 400; }
-  .kb-card .desc { font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
-  .kb-card .card-meta { display: flex; gap: 8px; font-size: 0.72rem; color: var(--muted); flex-wrap: wrap; align-items: center; }
-  .badge-sm { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
-  .badge-blue { background: #1e3a5f; color: var(--accent); }
-  .badge-purple { background: rgba(139,92,246,0.15); color: #8b5cf6; }
-  .table-tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
-  .table-tag { background: rgba(139,92,246,0.1); color: #8b5cf6; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
-  .kb-summary { display: flex; gap: 14px; margin-bottom: 14px; }
-  .kb-summary .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; }
-  .kb-summary .stat-num { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
-  .kb-summary .stat-label { font-size: 0.72rem; color: var(--muted); }
-  .tab-bar { display: flex; gap: 0; margin-bottom: 0; }
-  .tab-bar button { border-radius: 6px 6px 0 0; background: var(--bg); color: var(--muted); border: 1px solid var(--border); border-bottom: none; font-size: 0.82rem; padding: 6px 18px; }
-  .tab-bar button.active { background: var(--card); color: var(--text); }
-  .data-table-wrap { max-height: 500px; overflow: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-  th { position: sticky; top: 0; background: var(--card); color: var(--accent); font-weight: 600; }
-  tr:hover td { background: rgba(56,189,248,0.05); }
-  .empty-msg { color: var(--muted); padding: 40px; text-align: center; }
+  /* ===== Content area ===== */
+  .container { max-width: 1400px; margin: 0 auto; padding: 28px 28px 60px; }
+  .tab-content { display: none; animation: fadeUp 0.4s ease-out; }
+  .tab-content.active { display: block; }
 
-  .meta { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* ===== Buttons ===== */
+  button {
+    font-family: var(--font-body); font-size: 0.85rem; padding: 9px 20px;
+    border-radius: 24px; border: none; cursor: pointer; font-weight: 500;
+    transition: all 0.25s ease; display: inline-flex; align-items: center; gap: 6px;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-light); box-shadow: 0 4px 16px var(--accent-glow); }
+  .btn-warm { background: var(--warm); color: #fff; }
+  .btn-warm:hover { box-shadow: 0 4px 16px var(--warm-light); }
+  .btn-data { background: var(--bg-deep); color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-data:hover { background: var(--border-light); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg-deep); color: var(--text); }
 </style>
 </head>
 <body>
 
-<h1>⚡ NL2SQL 知识库迁移控制台</h1>
-
-<!-- 控制面板 -->
-<div class="panel">
-  <div class="controls">
-    <div>
-      <label>目标库</label><br>
+<!-- ===== Sticky Header ===== -->
+<div class="global-header">
+  <div class="header-inner">
+    <h1>NL2SQL <span>知识库</span></h1>
+    <div class="header-right">
+      <label>目标库</label>
       <select id="selTarget">
-        <option value="local">Local (Docker)</option>
         <option value="remote">Remote (新工作区)</option>
+        <option value="local">Local (Docker)</option>
       </select>
     </div>
-    <div class="checkbox-wrap" style="margin-top:18px">
-      <input type="checkbox" id="chkDry">
-      <label for="chkDry">Dry Run（空跑）</label>
+  </div>
+</div>
+
+<!-- ===== Tab Navigation ===== -->
+<div class="main-nav">
+  <button class="nav-tab active" onclick="switchMainTab('kb', this)">知识库</button>
+  <button class="nav-tab" onclick="switchMainTab('data', this)">数据查看</button>
+  <button class="nav-tab" onclick="switchMainTab('migrate', this)">迁移工具</button>
+</div>
+
+<div class="container">
+
+<!-- ==================== Tab 1: 知识库管理 ==================== -->
+<div class="tab-content active" id="tab-kb">
+  <div class="kb-toolbar">
+    <input type="text" id="kbSearch" placeholder="搜索知识库名称…" oninput="applyKbFilter()" oncompositionstart="kbComposing=true" oncompositionend="kbComposing=false;applyKbFilter()" class="kb-search-input">
+    <div class="filter-select" id="tableFilterSelect">
+      <div class="fs-trigger" onclick="toggleFilterDropdown()">
+        <span class="fs-text" id="filterDisplay">筛选关联表</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+      </div>
+      <div class="fs-dropdown" id="filterDropdown">
+        <div class="fs-search-wrap">
+          <input type="text" class="fs-search" id="filterSearch" placeholder="搜索表名…" oninput="filterFilterOptions()">
+        </div>
+        <div class="fs-options" id="filterOptions"></div>
+      </div>
     </div>
-    <button id="btnRun" style="margin-top:18px" onclick="runMigration()">▶ 执行迁移</button>
-    <span id="statusBadge" class="badge badge-idle" style="margin-top:18px">IDLE</span>
-    <span id="timeMeta" class="meta" style="margin-top:18px"></span>
-  </div>
-
-  <div id="logBox" class="log-box" style="display:none"></div>
-</div>
-
-<!-- 数据面板 -->
-<div class="panel">
-  <div class="controls" style="margin-bottom: 12px;">
-    <button class="btn-data" onclick="loadData()">📊 查看最新数据</button>
-    <span id="dataMsg" class="meta"></span>
-  </div>
-
-  <div class="tab-bar">
-    <button class="active" onclick="switchTab('kb', this)">knowledge_base</button>
-    <button onclick="switchTab('nk', this)">nl2sql_knowledge</button>
-  </div>
-
-  <div id="tab-kb" class="data-table-wrap" style="border:1px solid var(--border); border-radius: 0 6px 6px 6px;">
-    <div class="empty-msg">点击「查看最新数据」加载</div>
-  </div>
-  <div id="tab-nk" class="data-table-wrap" style="border:1px solid var(--border); border-radius: 0 6px 6px 6px; display:none;">
-    <div class="empty-msg">点击「查看最新数据」加载</div>
-  </div>
-</div>
-
-<!-- 知识库列表 -->
-<div class="panel">
-  <div class="controls" style="margin-bottom: 12px;">
-    <button style="background:#10b981" onclick="loadKbList()">📚 加载知识库列表</button>
-    <span id="kbMsg" class="meta"></span>
+    <div class="fs-tags" id="filterTags"></div>
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+      <button class="btn-warm" onclick="openKbModal()">+ 新增知识库</button>
+      <button class="btn-ghost" onclick="loadKbList()">刷新</button>
+    </div>
+    <span id="kbMsg" class="meta" style="width:100%"></span>
   </div>
   <div id="kbSummary" class="kb-summary" style="display:none"></div>
   <div id="kbGrid"></div>
 </div>
 
+<!-- ==================== Tab 2: 数据查看 ==================== -->
+<div class="tab-content" id="tab-data">
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn-data" onclick="loadData()">加载数据</button>
+    <span id="dataMsg" class="meta"></span>
+  </div>
+  <div class="data-tab-bar">
+    <button class="active" onclick="switchDataTab('kb', this)">knowledge_base</button>
+    <button onclick="switchDataTab('nk', this)">nl2sql_knowledge</button>
+  </div>
+  <div id="dtab-kb" class="data-table-wrap"><div class="empty-msg">点击「加载数据」查看</div></div>
+  <div id="dtab-nk" class="data-table-wrap" style="display:none"><div class="empty-msg">点击「加载数据」查看</div></div>
+</div>
+
+<!-- ==================== Tab 3: 迁移工具 ==================== -->
+<div class="tab-content" id="tab-migrate">
+  <div class="migrate-panel">
+    <div class="migrate-controls">
+      <label class="checkbox-wrap">
+        <input type="checkbox" id="chkDry"> Dry Run（空跑）
+      </label>
+      <button class="btn-primary" id="btnRun" onclick="runMigration()">执行迁移</button>
+      <span id="statusBadge" class="badge badge-idle">IDLE</span>
+      <span id="timeMeta" class="meta"></span>
+    </div>
+    <div id="logBox" class="log-box" style="display:none"></div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ===== 知识库新增/编辑弹窗 ===== -->
+<div class="modal-overlay" id="kbModal">
+  <div class="modal">
+    <h2 id="kbModalTitle">新增知识库</h2>
+    <input type="hidden" id="kbEditId">
+    <div class="field">
+      <label>知识库名称 *</label>
+      <input type="text" id="kbName" placeholder="例如：收入成本表">
+    </div>
+    <div class="field">
+      <label>用途说明</label>
+      <textarea id="kbUsageNotes" placeholder="描述这个知识库的用途…"></textarea>
+    </div>
+    <div class="field">
+      <label>关联表</label>
+      <div class="multi-select" id="kbTableSelect">
+        <div class="ms-trigger" onclick="toggleTableDropdown()">
+          <span class="ms-placeholder" id="kbTablesDisplay">点击选择关联表…</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="ms-dropdown" id="kbTablesDropdown">
+          <div class="ms-search-wrap">
+            <input type="text" class="ms-search" id="kbTableSearch" placeholder="搜索表名…" oninput="filterTableOptions()">
+          </div>
+          <div class="ms-actions">
+            <button type="button" class="btn-ghost" style="font-size:0.68rem;padding:2px 10px" onclick="selectAllTables(true)">全选</button>
+            <button type="button" class="btn-ghost" style="font-size:0.68rem;padding:2px 10px" onclick="selectAllTables(false)">全不选</button>
+            <span id="kbTablesCount" class="picker-count">已选 0 张</span>
+          </div>
+          <div class="ms-options" id="kbTablesGrid"></div>
+        </div>
+      </div>
+      <div id="kbTablesLoading" style="font-size:0.82rem;color:var(--muted);display:none">加载表列表…</div>
+      <div class="ms-tags" id="kbSelectedTags"></div>
+    </div>
+    <div class="field">
+      <label>文件 JSON</label>
+      <textarea id="kbFilesJson" placeholder="{}"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="closeKbModal()">取消</button>
+      <button class="btn-primary" onclick="saveKb()">保存</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* ===== Additional styles ===== */
+  .meta { font-size: 0.78rem; color: var(--muted); }
+
+  /* KB Toolbar */
+  .kb-toolbar {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .kb-search-input {
+    font-family: var(--font-body); font-size: 0.88rem; padding: 8px 16px;
+    border-radius: 24px; border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); width: 200px; transition: border-color 0.2s; outline: none;
+  }
+  .kb-search-input:focus { border-color: var(--accent); }
+
+  /* Filter multi-select */
+  .filter-select { position: relative; }
+  .fs-trigger {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 24px;
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--muted); cursor: pointer; transition: all 0.2s;
+    font-size: 0.85rem; white-space: nowrap; user-select: none;
+  }
+  .fs-trigger:hover { border-color: var(--accent); color: var(--text); }
+  .fs-trigger.open { border-color: var(--accent); color: var(--text); border-radius: 24px 24px 0 0; }
+  .fs-trigger.has-selection { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+  .fs-dropdown {
+    display: none; position: absolute; top: 100%; left: 0;
+    min-width: 420px; background: var(--card);
+    border: 1px solid var(--accent); border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    box-shadow: 0 12px 32px rgba(61,52,40,0.12);
+    z-index: 60; flex-direction: column;
+  }
+  .fs-dropdown.open { display: flex; }
+  .fs-search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border-light); }
+  .fs-search {
+    width: 100%; font-family: var(--font-body); font-size: 0.82rem;
+    padding: 6px 10px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border-light); background: var(--bg);
+    color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .fs-search:focus { border-color: var(--accent); }
+  .fs-options { overflow-y: auto; max-height: 240px; padding: 4px 0; }
+  .fs-options::-webkit-scrollbar { width: 5px; }
+  .fs-options::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .fs-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; cursor: pointer; transition: background 0.12s;
+    font-size: 0.82rem; font-family: var(--font-mono); color: var(--text);
+  }
+  .fs-option:hover { background: var(--accent-glow); }
+  .fs-option.selected { background: var(--green-light); }
+  .fs-option.hidden { display: none; }
+  .fs-option input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+  .fs-tags {
+    display: flex; flex-wrap: wrap; gap: 5px;
+  }
+  .fs-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--accent-glow); color: var(--accent);
+    padding: 4px 10px; border-radius: 14px;
+    font-size: 0.72rem; font-family: var(--font-mono); cursor: default;
+  }
+  .fs-tag-x {
+    cursor: pointer; font-size: 0.82rem; line-height: 1;
+    opacity: 0.5; transition: opacity 0.15s;
+  }
+  .fs-tag-x:hover { opacity: 1; }
+
+  /* KB Grid */
+  .kb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
+  .kb-card {
+    background: var(--card); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 20px; transition: all 0.3s ease;
+    cursor: pointer; display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .kb-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--warm)); opacity: 0; transition: opacity 0.3s;
+  }
+  .kb-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-3px); }
+  .kb-card:hover::before { opacity: 1; }
+  .kb-card h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 400; margin-bottom: 6px; color: var(--text); }
+  .kb-card h3 .kid { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .kb-card .desc {
+    font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden; flex: 1;
+  }
+  .card-meta { display: flex; gap: 8px; font-size: 0.7rem; color: var(--muted); flex-wrap: wrap; align-items: center; }
+  .badge-sm { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 600; }
+  .badge-green { background: var(--green-light); color: var(--green); }
+  .badge-warm { background: var(--warm-light); color: var(--warm); }
+  .table-tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .table-tag { background: var(--accent-glow); color: var(--accent); padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-family: var(--font-mono); }
+
+  .kb-summary { display: flex; gap: 14px; margin-bottom: 18px; }
+  .kb-summary .stat {
+    background: var(--card); border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm); padding: 14px 24px; text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .kb-summary .stat-num { font-family: var(--font-display); font-size: 1.5rem; color: var(--accent); }
+  .kb-summary .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+  /* Data tabs */
+  .data-tab-bar { display: flex; gap: 0; }
+  .data-tab-bar button {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    background: var(--bg-deep); color: var(--muted);
+    border: 1px solid var(--border-light); border-bottom: none;
+    font-size: 0.8rem; padding: 7px 20px;
+    font-family: var(--font-mono); font-weight: 400; letter-spacing: 0;
+  }
+  .data-tab-bar button:hover { transform: none; }
+  .data-tab-bar button.active { background: var(--card); color: var(--text); border-color: var(--border-light); }
+  .data-table-wrap {
+    max-height: 520px; overflow: auto;
+    border: 1px solid var(--border-light);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) var(--radius-sm);
+    background: var(--card);
+  }
+  .data-table-wrap::-webkit-scrollbar { width: 6px; height: 6px; }
+  .data-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border-light); }
+  th { position: sticky; top: 0; background: var(--bg-deep); color: var(--text-secondary); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:hover td { background: var(--accent-glow); }
+  .empty-msg { color: var(--muted); padding: 48px; text-align: center; font-size: 0.88rem; }
+
+  /* Migrate panel */
+  .migrate-panel {
+    background: var(--card); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow);
+  }
+  .migrate-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .checkbox-wrap {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; user-select: none;
+  }
+  .checkbox-wrap input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  .badge {
+    display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em;
+  }
+  .badge-idle { background: var(--bg-deep); color: var(--muted); }
+  .badge-running { background: var(--accent-glow); color: var(--accent); animation: breathe 2s ease-in-out infinite; }
+  .badge-success { background: var(--green-light); color: var(--green); }
+  .badge-error { background: var(--red-light); color: var(--red); }
+  .log-box {
+    background: #2c2418; border-radius: var(--radius-sm); padding: 16px; margin-top: 14px;
+    max-height: 420px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.78rem;
+    line-height: 1.7; white-space: pre-wrap; word-break: break-all; color: #d4c9b4;
+  }
+  .log-box::-webkit-scrollbar { width: 6px; }
+  .log-box::-webkit-scrollbar-track { background: transparent; }
+  .log-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+  .log-box .warn { color: #e8b86d; }
+  .log-box .ok { color: #8aba8a; }
+  .log-box .fail { color: #d4785a; }
+  .log-box .skip { color: #8a7b6a; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(61,52,40,0.4); backdrop-filter: blur(4px);
+    z-index: 100; justify-content: center; align-items: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 28px;
+    width: 560px; max-width: 92vw; max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(61,52,40,0.2);
+    animation: modalIn 0.3s ease-out;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: none; } }
+  .modal h2 { font-family: var(--font-display); font-size: 1.2rem; color: var(--text); margin-bottom: 20px; font-weight: 400; }
+  .modal .field { margin-bottom: 16px; }
+  .modal .field label {
+    display: block; font-size: 0.72rem; color: var(--muted);
+    margin-bottom: 5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .modal .field input, .modal .field textarea {
+    width: 100%; font-family: var(--font-body); font-size: 0.88rem;
+    padding: 10px 14px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); resize: vertical; transition: border-color 0.2s;
+  }
+  .modal .field input:focus, .modal .field textarea:focus { outline: none; border-color: var(--accent); }
+  .modal .field textarea { min-height: 80px; }
+  .modal .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+  .picker-count { font-size: 0.72rem; color: var(--muted); }
+
+  /* Multi-select dropdown */
+  .multi-select { position: relative; }
+  .ms-trigger {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); cursor: pointer; transition: border-color 0.2s;
+    font-size: 0.88rem; min-height: 42px;
+  }
+  .ms-trigger:hover { border-color: var(--accent); }
+  .ms-trigger.open { border-color: var(--accent); border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+  .ms-placeholder { color: var(--muted); font-size: 0.85rem; }
+  .ms-display { font-size: 0.85rem; color: var(--text); }
+  .ms-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1px solid var(--accent);
+    border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+    box-shadow: 0 12px 32px rgba(61,52,40,0.12);
+    z-index: 50; max-height: 320px; overflow: hidden; flex-direction: column;
+  }
+  .ms-dropdown.open { display: flex; }
+  .ms-search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border-light); }
+  .ms-search {
+    width: 100%; font-family: var(--font-body); font-size: 0.82rem;
+    padding: 7px 10px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border-light); background: var(--bg);
+    color: var(--text); transition: border-color 0.2s;
+  }
+  .ms-search:focus { outline: none; border-color: var(--accent); }
+  .ms-actions { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border-light); }
+  .ms-options { overflow-y: auto; max-height: 220px; padding: 4px 0; }
+  .ms-options::-webkit-scrollbar { width: 5px; }
+  .ms-options::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .ms-option { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; cursor: pointer; transition: background 0.12s; }
+  .ms-option:hover { background: var(--accent-glow); }
+  .ms-option.selected { background: var(--green-light); }
+  .ms-option.hidden { display: none; }
+  .ms-option input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+  .ms-option-info { flex: 1; min-width: 0; }
+  .ms-option-name { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text); }
+  .ms-option-id { font-size: 0.65rem; color: var(--muted); margin-left: 4px; }
+  .ms-option-desc { font-size: 0.72rem; color: var(--muted); margin-top: 1px; line-height: 1.4; }
+  .ms-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .ms-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--accent-glow); color: var(--accent);
+    padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-family: var(--font-mono);
+  }
+  .ms-tag-remove { cursor: pointer; font-size: 0.8rem; line-height: 1; opacity: 0.6; transition: opacity 0.15s; }
+  .ms-tag-remove:hover { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
 <script>
+// ==================== Tab 切换 ====================
+function switchMainTab(tab, btn) {
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ==================== 迁移 ====================
 let pollTimer = null;
 let logOffset = 0;
 
@@ -130,15 +502,12 @@ async function runMigration() {
   const dryRun = document.getElementById('chkDry').checked;
   const btn = document.getElementById('btnRun');
   btn.disabled = true;
-
   const res = await fetch('/api/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target, dry_run: dryRun }),
   });
   const data = await res.json();
   if (!data.ok) { alert(data.msg); btn.disabled = false; return; }
-
   logOffset = 0;
   document.getElementById('logBox').style.display = 'block';
   document.getElementById('logBox').innerHTML = '';
@@ -149,8 +518,6 @@ async function runMigration() {
 async function pollStatus() {
   const res = await fetch(`/api/status?since=${logOffset}`);
   const d = await res.json();
-
-  // Append new log lines
   const box = document.getElementById('logBox');
   d.logs.forEach(line => {
     const span = document.createElement('span');
@@ -163,28 +530,21 @@ async function pollStatus() {
   });
   logOffset = d.total_lines;
   box.scrollTop = box.scrollHeight;
-
-  // Time info
   let meta = '';
   if (d.started_at) meta += '开始: ' + d.started_at;
   if (d.finished_at) meta += '  完成: ' + d.finished_at;
   document.getElementById('timeMeta').textContent = meta;
-
   updateBadge(d.status);
-
-  if (d.status !== 'running') {
-    clearInterval(pollTimer);
-    document.getElementById('btnRun').disabled = false;
-  }
+  if (d.status !== 'running') { clearInterval(pollTimer); document.getElementById('btnRun').disabled = false; }
 }
 
 function updateBadge(status) {
   const el = document.getElementById('statusBadge');
   el.className = 'badge badge-' + status;
-  const labels = { idle: 'IDLE', running: 'RUNNING…', success: 'SUCCESS', error: 'ERROR' };
-  el.textContent = labels[status] || status;
+  el.textContent = { idle: 'IDLE', running: 'RUNNING…', success: 'SUCCESS', error: 'ERROR' }[status] || status;
 }
 
+// ==================== 数据查看 ====================
 async function loadData() {
   const target = document.getElementById('selTarget').value;
   document.getElementById('dataMsg').textContent = '加载中…';
@@ -192,14 +552,10 @@ async function loadData() {
     const res = await fetch(`/api/data?target=${target}`);
     const d = await res.json();
     if (!d.ok) { document.getElementById('dataMsg').textContent = '❌ ' + d.msg; return; }
-
-    renderTable('tab-kb', d.knowledge_base, ['id','name','usage_notes','tables_json','created_by','updated_by','created_at','updated_at']);
-    renderTable('tab-nk', d.nl2sql_knowledge, ['id','knowledge_base_id','knowledge_type','knowledge_key_preview','name','explanation_type','created_at','updated_at']);
-    document.getElementById('dataMsg').textContent =
-      `knowledge_base: ${d.knowledge_base.length} 条 | nl2sql_knowledge: ${d.nl2sql_knowledge.length} 条`;
-  } catch (e) {
-    document.getElementById('dataMsg').textContent = '❌ ' + e.message;
-  }
+    renderTable('dtab-kb', d.knowledge_base, ['id','name','usage_notes','tables_json','created_by','updated_by','created_at','updated_at']);
+    renderTable('dtab-nk', d.nl2sql_knowledge, ['id','knowledge_base_id','knowledge_type','knowledge_key','name','knowledge_value','associate_tables','explanation_type','created_by','updated_by','created_at','updated_at']);
+    document.getElementById('dataMsg').textContent = `knowledge_base: ${d.knowledge_base.length} 条 | nl2sql_knowledge: ${d.nl2sql_knowledge.length} 条`;
+  } catch (e) { document.getElementById('dataMsg').textContent = '❌ ' + e.message; }
 }
 
 function renderTable(containerId, rows, cols) {
@@ -221,15 +577,156 @@ function renderTable(containerId, rows, cols) {
   wrap.innerHTML = html;
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function switchDataTab(tab, btn) {
+  document.querySelectorAll('.data-tab-bar button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('dtab-kb').style.display = tab === 'kb' ? '' : 'none';
+  document.getElementById('dtab-nk').style.display = tab === 'nk' ? '' : 'none';
 }
 
-function switchTab(tab, btn) {
-  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('tab-kb').style.display = tab === 'kb' ? '' : 'none';
-  document.getElementById('tab-nk').style.display = tab === 'nk' ? '' : 'none';
+// ==================== 知识库列表 ====================
+let kbListData = [];
+let selectedFilterTables = [];
+let filterDropdownOpen = false;
+let tableCommentMap = {}; // 表名→描述映射
+
+async function loadTableComments() {
+  if (Object.keys(tableCommentMap).length) return;
+  const target = document.getElementById('selTarget').value;
+  try {
+    const res = await fetch(`/api/tables?target=${target}`);
+    const d = await res.json();
+    if (d.ok) d.tables.forEach(t => { if (t.comment) tableCommentMap[t.name] = t.comment; });
+  } catch(e) {}
+}
+
+function tableLabel(name) {
+  const c = tableCommentMap[name];
+  return c ? `${name} · ${c}` : name;
+}
+
+function getKbTableNames(kb) {
+  let names = [];
+  try { JSON.parse(kb.tables_json || '[]').forEach(t => names.push(...(t.table_names || []))); } catch(e) {}
+  return names;
+}
+
+let kbComposing = false;
+function applyKbFilter() {
+  if (kbComposing) return;
+  const q = document.getElementById('kbSearch').value.toLowerCase().trim();
+  const filtered = kbListData.filter(kb => {
+    if (q && !kb.name.toLowerCase().includes(q)) return false;
+    if (selectedFilterTables.length) {
+      const kbTables = getKbTableNames(kb);
+      if (!selectedFilterTables.some(t => kbTables.includes(t))) return false;
+    }
+    return true;
+  });
+  renderKbGrid(filtered);
+}
+
+function buildTableFilterOptions() {
+  const allTables = new Set();
+  kbListData.forEach(kb => getKbTableNames(kb).forEach(n => allTables.add(n)));
+  const container = document.getElementById('filterOptions');
+  container.innerHTML = [...allTables].sort().map(n =>
+    `<div class="fs-option${selectedFilterTables.includes(n) ? ' selected' : ''}" data-name="${escHtml(n)}" onclick="toggleFilterTable('${escHtml(n)}')">
+      <input type="checkbox" ${selectedFilterTables.includes(n) ? 'checked' : ''} tabindex="-1">${escHtml(tableLabel(n))}
+    </div>`
+  ).join('');
+}
+
+function toggleFilterDropdown() {
+  filterDropdownOpen = !filterDropdownOpen;
+  document.getElementById('filterDropdown').classList.toggle('open', filterDropdownOpen);
+  document.querySelector('.fs-trigger').classList.toggle('open', filterDropdownOpen);
+  if (filterDropdownOpen) {
+    document.getElementById('filterSearch').value = '';
+    filterFilterOptions();
+    setTimeout(() => document.getElementById('filterSearch').focus(), 50);
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (filterDropdownOpen && !e.target.closest('.filter-select')) {
+    filterDropdownOpen = false;
+    document.getElementById('filterDropdown').classList.remove('open');
+    document.querySelector('.fs-trigger').classList.remove('open');
+  }
+});
+
+function toggleFilterTable(name) {
+  const idx = selectedFilterTables.indexOf(name);
+  if (idx >= 0) selectedFilterTables.splice(idx, 1);
+  else selectedFilterTables.push(name);
+  updateFilterUI();
+  applyKbFilter();
+}
+
+function removeFilterTable(name) {
+  selectedFilterTables = selectedFilterTables.filter(n => n !== name);
+  updateFilterUI();
+  applyKbFilter();
+}
+
+function updateFilterUI() {
+  // Update trigger text
+  const trigger = document.querySelector('.fs-trigger');
+  const display = document.getElementById('filterDisplay');
+  if (selectedFilterTables.length) {
+    display.textContent = `已选 ${selectedFilterTables.length} 张表`;
+    trigger.classList.add('has-selection');
+  } else {
+    display.textContent = '筛选关联表';
+    trigger.classList.remove('has-selection');
+  }
+  // Update checkboxes
+  document.querySelectorAll('.fs-option').forEach(opt => {
+    const name = opt.dataset.name;
+    const checked = selectedFilterTables.includes(name);
+    opt.classList.toggle('selected', checked);
+    opt.querySelector('input').checked = checked;
+  });
+  // Update tags
+  const tagsEl = document.getElementById('filterTags');
+  tagsEl.innerHTML = selectedFilterTables.map(n =>
+    `<span class="fs-tag">${escHtml(tableLabel(n))}<span class="fs-tag-x" onclick="removeFilterTable('${escHtml(n)}')">×</span></span>`
+  ).join('');
+}
+
+function filterFilterOptions() {
+  const q = document.getElementById('filterSearch').value.toLowerCase();
+  document.querySelectorAll('.fs-option').forEach(opt => {
+    opt.classList.toggle('hidden', q && !opt.dataset.name.toLowerCase().includes(q));
+  });
+}
+
+function renderKbGrid(data) {
+  const grid = document.getElementById('kbGrid');
+  const target = document.getElementById('selTarget').value;
+  if (!data.length) { grid.innerHTML = '<div class="empty-msg">无匹配结果</div>'; return; }
+  let html = '<div class="kb-grid">';
+  data.forEach(kb => {
+    let tableNames = [];
+    try { JSON.parse(kb.tables_json || '[]').forEach(t => tableNames.push(...(t.table_names || []))); } catch(e) {}
+    html += `
+      <div class="kb-card">
+        <div onclick="location.href='/kb/${kb.id}?target=${target}'" style="flex:1">
+          <h3>${escHtml(kb.name)}<span class="kid">#${kb.id}</span></h3>
+          <div class="desc">${escHtml(kb.usage_notes || '暂无用途说明')}</div>
+          <div class="card-meta">
+            <span class="badge-sm badge-green">${kb.knowledge_count} 条知识</span>
+            <span class="badge-sm badge-warm">${tableNames.length} 张表</span>
+            <span>${escHtml(kb.created_by || '-')}</span>
+          </div>
+          ${tableNames.length ? `<div class="table-tags">${tableNames.map(n => `<span class="table-tag">${escHtml(tableLabel(n))}</span>`).join('')}</div>` : ''}
+        </div>
+        <button class="btn-warm" style="align-self:flex-start;font-size:0.72rem;padding:5px 14px;margin-top:8px" onclick="event.stopPropagation();editKb(${kb.id},'${target}')">编辑</button>
+      </div>`;
+  });
+  html += '</div>';
+  grid.innerHTML = html;
 }
 
 async function loadKbList() {
@@ -240,52 +737,184 @@ async function loadKbList() {
   grid.innerHTML = '<div class="empty-msg">加载中…</div>';
   sumWrap.style.display = 'none';
   msg.textContent = '';
-
   try {
     const res = await fetch(`/api/kb?target=${target}`);
     const d = await res.json();
     if (!d.ok) { grid.innerHTML = ''; msg.textContent = '❌ ' + d.msg; return; }
     if (!d.data.length) { grid.innerHTML = '<div class="empty-msg">暂无知识库</div>'; return; }
-
+    kbListData = d.data;
+    buildTableFilterOptions();
     const totalKb = d.data.length;
     const totalNk = d.data.reduce((s, kb) => s + (kb.knowledge_count || 0), 0);
     const allTables = new Set();
-    d.data.forEach(kb => {
-      try { JSON.parse(kb.tables_json || '[]').forEach(t => (t.table_names||[]).forEach(n => allTables.add(n))); } catch(e){}
-    });
-
+    d.data.forEach(kb => { try { JSON.parse(kb.tables_json || '[]').forEach(t => (t.table_names||[]).forEach(n => allTables.add(n))); } catch(e){} });
     sumWrap.innerHTML = `
       <div class="stat"><div class="stat-num">${totalKb}</div><div class="stat-label">知识库</div></div>
       <div class="stat"><div class="stat-num">${totalNk}</div><div class="stat-label">知识条目</div></div>
       <div class="stat"><div class="stat-num">${allTables.size}</div><div class="stat-label">关联表</div></div>`;
     sumWrap.style.display = 'flex';
+    renderKbGrid(d.data);
+  } catch(e) { grid.innerHTML = ''; msg.textContent = '❌ ' + e.message; }
+}
 
-    let html = '<div class="kb-grid">';
-    d.data.forEach(kb => {
-      let tableNames = [];
-      try { JSON.parse(kb.tables_json || '[]').forEach(t => tableNames.push(...(t.table_names || []))); } catch(e) {}
+// ==================== 表选择（多选下拉） ====================
+let availableTables = [];
+let tablesMetadata = {};
+let tableDropdownOpen = false;
 
-      html += `
-        <div class="kb-card" onclick="location.href='/kb/${kb.id}?target=${target}'">
-          <h3>${escHtml(kb.name)} <span class="kid">#${kb.id}</span></h3>
-          <div class="desc">${escHtml(kb.usage_notes || '暂无用途说明')}</div>
-          <div class="card-meta">
-            <span class="badge-sm badge-blue">${kb.knowledge_count} 条知识</span>
-            <span class="badge-sm badge-purple">${tableNames.length} 张表</span>
-            <span>👤 ${escHtml(kb.created_by || '-')}</span>
-            <span>📅 ${(kb.updated_at || '').replace('T',' ')}</span>
-          </div>
-          ${tableNames.length ? `<div class="table-tags">${tableNames.map(n => `<span class="table-tag">${escHtml(n)}</span>`).join('')}</div>` : ''}
-        </div>`;
-    });
-    html += '</div>';
-    grid.innerHTML = html;
-    msg.textContent = `共 ${totalKb} 个知识库`;
-  } catch(e) {
-    grid.innerHTML = '';
-    msg.textContent = '❌ ' + e.message;
+async function loadAvailableTables() {
+  const target = document.getElementById('selTarget').value;
+  const loading = document.getElementById('kbTablesLoading');
+  loading.style.display = 'block';
+  document.getElementById('kbTableSelect').style.display = 'none';
+  try {
+    const res = await fetch(`/api/tables?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { loading.textContent = '❌ ' + d.msg; return; }
+    availableTables = d.tables;
+    tablesMetadata = { db_name: d.db_name, database_id: d.database_id, catalog_id: d.catalog_id };
+    renderTableOptions();
+    loading.style.display = 'none';
+    document.getElementById('kbTableSelect').style.display = 'block';
+  } catch(e) { loading.textContent = '❌ ' + e.message; }
+}
+
+function renderTableOptions() {
+  const grid = document.getElementById('kbTablesGrid');
+  let html = '';
+  availableTables.forEach((t, i) => {
+    html += `<div class="ms-option" data-name="${escHtml(t.name)}" onclick="toggleTableOption(${i})">
+      <input type="checkbox" class="kb-table-cb" value="${escHtml(t.name)}" tabindex="-1">
+      <div class="ms-option-info">
+        <div><span class="ms-option-name">${escHtml(t.name)}</span>${t.table_id ? `<span class="ms-option-id">#${t.table_id}</span>` : ''}</div>
+        ${t.comment ? `<div class="ms-option-desc">${escHtml(t.comment)}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+}
+
+function toggleTableDropdown() {
+  tableDropdownOpen = !tableDropdownOpen;
+  document.getElementById('kbTablesDropdown').classList.toggle('open', tableDropdownOpen);
+  document.querySelector('.ms-trigger').classList.toggle('open', tableDropdownOpen);
+  if (tableDropdownOpen) {
+    document.getElementById('kbTableSearch').value = '';
+    filterTableOptions();
+    setTimeout(() => document.getElementById('kbTableSearch').focus(), 50);
   }
 }
+
+document.addEventListener('click', function(e) {
+  if (tableDropdownOpen && !e.target.closest('.multi-select')) {
+    tableDropdownOpen = false;
+    document.getElementById('kbTablesDropdown').classList.remove('open');
+    document.querySelector('.ms-trigger').classList.remove('open');
+  }
+});
+
+function toggleTableOption(idx) {
+  const cb = document.querySelectorAll('.kb-table-cb')[idx];
+  cb.checked = !cb.checked;
+  cb.closest('.ms-option').classList.toggle('selected', cb.checked);
+  updateTableDisplay();
+}
+
+function filterTableOptions() {
+  const q = document.getElementById('kbTableSearch').value.toLowerCase();
+  document.querySelectorAll('.ms-option').forEach(opt => {
+    const name = opt.dataset.name.toLowerCase();
+    const desc = (opt.querySelector('.ms-option-desc')?.textContent || '').toLowerCase();
+    opt.classList.toggle('hidden', q && !name.includes(q) && !desc.includes(q));
+  });
+}
+
+function selectAllTables(checked) {
+  document.querySelectorAll('.ms-option:not(.hidden) .kb-table-cb').forEach(cb => {
+    cb.checked = checked;
+    cb.closest('.ms-option').classList.toggle('selected', checked);
+  });
+  updateTableDisplay();
+}
+
+function updateTableDisplay() {
+  const selected = getSelectedTableNames();
+  const cnt = selected.length;
+  document.getElementById('kbTablesCount').textContent = `已选 ${cnt} 张`;
+  const display = document.getElementById('kbTablesDisplay');
+  if (cnt === 0) { display.className = 'ms-placeholder'; display.textContent = '点击选择关联表…'; }
+  else { display.className = 'ms-display'; display.textContent = `已选择 ${cnt} 张表`; }
+  const tagsEl = document.getElementById('kbSelectedTags');
+  if (cnt === 0) { tagsEl.innerHTML = ''; return; }
+  tagsEl.innerHTML = selected.map(name => {
+    const t = availableTables.find(x => x.name === name);
+    const label = t && t.comment ? `${name} · ${t.comment}` : name;
+    return `<span class="ms-tag">${escHtml(label)}<span class="ms-tag-remove" onclick="removeTable('${escHtml(name)}')">×</span></span>`;
+  }).join('');
+}
+
+function removeTable(name) {
+  document.querySelectorAll('.kb-table-cb').forEach(cb => {
+    if (cb.value === name) { cb.checked = false; cb.closest('.ms-option').classList.remove('selected'); }
+  });
+  updateTableDisplay();
+}
+
+function getSelectedTableNames() { return [...document.querySelectorAll('.kb-table-cb:checked')].map(cb => cb.value); }
+
+function setSelectedTableNames(names) {
+  document.querySelectorAll('.kb-table-cb').forEach(cb => {
+    cb.checked = names.includes(cb.value);
+    cb.closest('.ms-option').classList.toggle('selected', cb.checked);
+  });
+  updateTableDisplay();
+}
+
+function buildTablesJson(selectedNames) {
+  if (!selectedNames.length) return null;
+  const tableIds = [];
+  selectedNames.forEach(name => { const t = availableTables.find(x => x.name === name); if (t && t.table_id) tableIds.push(t.table_id); });
+  return JSON.stringify([{ db_name: tablesMetadata.db_name, table_ids: tableIds, table_names: selectedNames, parents: [`catalog-${tablesMetadata.catalog_id}`, `database-${tablesMetadata.database_id}`] }]);
+}
+
+// ==================== 知识库弹窗 ====================
+async function openKbModal(kb) {
+  document.getElementById('kbModalTitle').textContent = kb ? '编辑知识库' : '新增知识库';
+  document.getElementById('kbEditId').value = kb ? kb.id : '';
+  document.getElementById('kbName').value = kb ? kb.name : '';
+  document.getElementById('kbUsageNotes').value = kb ? (kb.usage_notes || '') : '';
+  document.getElementById('kbFilesJson').value = kb ? (kb.files_json || '') : '';
+  document.getElementById('kbModal').classList.add('show');
+  if (!availableTables.length) await loadAvailableTables();
+  if (kb && kb.tables_json) {
+    try { const tables = JSON.parse(kb.tables_json); const names = []; tables.forEach(t => names.push(...(t.table_names || []))); setSelectedTableNames(names); } catch(e) { setSelectedTableNames([]); }
+  } else { setSelectedTableNames([]); }
+}
+function closeKbModal() { document.getElementById('kbModal').classList.remove('show'); }
+
+async function editKb(kbId, target) {
+  try { const res = await fetch(`/api/kb/${kbId}?target=${target}`); const d = await res.json(); if (!d.ok) { alert(d.msg); return; } openKbModal(d.knowledge_base); } catch(e) { alert(e.message); }
+}
+
+async function saveKb() {
+  const target = document.getElementById('selTarget').value;
+  const editId = document.getElementById('kbEditId').value;
+  const name = document.getElementById('kbName').value.trim();
+  if (!name) { alert('知识库名称必填'); return; }
+  const body = { name, usage_notes: document.getElementById('kbUsageNotes').value.trim() || null, tables_json: buildTablesJson(getSelectedTableNames()), files_json: document.getElementById('kbFilesJson').value.trim() || null };
+  const url = editId ? `/api/kb/${editId}?target=${target}` : `/api/kb?target=${target}`;
+  try {
+    const res = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!d.ok) { alert(d.msg); return; }
+    closeKbModal(); loadKbList();
+  } catch(e) { alert(e.message); }
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ===== 页面加载自动拉取知识库列表 =====
+loadTableComments().then(() => loadKbList());
 </script>
 </body>
 </html>

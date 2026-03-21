@@ -132,5 +132,80 @@ def api_kb_detail(kb_id):
         return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
 
 
+@app.route("/api/kb", methods=["POST"])
+def api_kb_create():
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True)
+    if not body or not body.get("name"):
+        return jsonify({"ok": False, "msg": "name 必填"}), 400
+    try:
+        return jsonify(db_service.create_knowledge_base(target, body)), 201
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/kb/<int:kb_id>", methods=["PUT"])
+def api_kb_update(kb_id):
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True)
+    if not body or not body.get("name"):
+        return jsonify({"ok": False, "msg": "name 必填"}), 400
+    try:
+        result = db_service.update_knowledge_base(target, kb_id, body)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/kb/<int:kb_id>/items", methods=["POST"])
+def api_item_create(kb_id):
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True) or {}
+    body["knowledge_base_id"] = kb_id
+    if not body.get("knowledge_type") or not body.get("knowledge_key"):
+        return jsonify({"ok": False, "msg": "knowledge_type 和 knowledge_key 必填"}), 400
+    try:
+        return jsonify(db_service.create_knowledge_item(target, body)), 201
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/items/<int:item_id>", methods=["PUT"])
+def api_item_update(item_id):
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True)
+    if not body or not body.get("knowledge_type") or not body.get("knowledge_key"):
+        return jsonify({"ok": False, "msg": "knowledge_type 和 knowledge_key 必填"}), 400
+    try:
+        result = db_service.update_knowledge_item(target, item_id, body)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/items/<int:item_id>", methods=["DELETE"])
+def api_item_delete(item_id):
+    target = request.args.get("target", "remote")
+    try:
+        result = db_service.delete_knowledge_item(target, item_id)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/tables")
+def api_tables():
+    target = request.args.get("target", "remote")
+    try:
+        return jsonify(db_service.get_available_tables(target))
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=9090)

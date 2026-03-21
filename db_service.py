@@ -63,8 +63,11 @@ def get_raw_data(target: str) -> dict:
 
             cur.execute(
                 "SELECT id, knowledge_base_id, knowledge_type, "
-                "SUBSTRING(knowledge_key, 1, 200) AS knowledge_key_preview, "
-                "name, explanation_type, created_at, updated_at "
+                "knowledge_key, name, "
+                "CAST(knowledge_value AS CHAR) AS knowledge_value, "
+                "CAST(associate_tables AS CHAR) AS associate_tables, "
+                "explanation_type, created_by, updated_by, "
+                "created_at, updated_at "
                 "FROM moi.nl2sql_knowledge ORDER BY id"
             )
             nk_rows = cur.fetchall()
@@ -136,5 +139,222 @@ def get_knowledge_base_detail(target: str, kb_id: int) -> dict:
             "knowledge_base": _serialize(kb),
             "knowledge_items": _serialize(nk_rows),
         }
+    finally:
+        conn.close()
+
+
+# ==================== 新增知识库 ====================
+
+def create_knowledge_base(target: str, data: dict) -> dict:
+    """新增知识库，返回新记录 ID"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO moi.knowledge_base "
+                "(name, usage_notes, `tables`, files, created_by, updated_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    data["name"],
+                    data.get("usage_notes"),
+                    data.get("tables_json"),
+                    data.get("files_json"),
+                    data.get("created_by", "admin"),
+                    data.get("updated_by", "admin"),
+                ),
+            )
+            conn.commit()
+            new_id = cur.lastrowid
+        return {"ok": True, "id": new_id}
+    finally:
+        conn.close()
+
+
+# ==================== 编辑知识库 ====================
+
+def update_knowledge_base(target: str, kb_id: int, data: dict) -> dict:
+    """更新知识库基本信息"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE moi.knowledge_base SET "
+                "name = %s, usage_notes = %s, `tables` = %s, "
+                "files = %s, updated_by = %s "
+                "WHERE id = %s",
+                (
+                    data["name"],
+                    data.get("usage_notes"),
+                    data.get("tables_json"),
+                    data.get("files_json"),
+                    data.get("updated_by", "admin"),
+                    kb_id,
+                ),
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"知识库 {kb_id} 不存在"}
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# ==================== 新增知识条目 ====================
+
+def create_knowledge_item(target: str, data: dict) -> dict:
+    """新增一条 nl2sql_knowledge"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO moi.nl2sql_knowledge "
+                "(knowledge_base_id, knowledge_type, knowledge_key, name, "
+                "knowledge_value, associate_tables, explanation_type, "
+                "created_by, updated_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    data["knowledge_base_id"],
+                    data["knowledge_type"],
+                    data["knowledge_key"],
+                    data.get("name"),
+                    data.get("knowledge_value"),
+                    data.get("associate_tables"),
+                    data.get("explanation_type"),
+                    data.get("created_by", "admin"),
+                    data.get("updated_by", "admin"),
+                ),
+            )
+            conn.commit()
+            new_id = cur.lastrowid
+        return {"ok": True, "id": new_id}
+    finally:
+        conn.close()
+
+
+# ==================== 编辑知识条目 ====================
+
+def update_knowledge_item(target: str, item_id: int, data: dict) -> dict:
+    """更新一条 nl2sql_knowledge"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE moi.nl2sql_knowledge SET "
+                "knowledge_type = %s, knowledge_key = %s, name = %s, "
+                "knowledge_value = %s, associate_tables = %s, "
+                "explanation_type = %s, updated_by = %s "
+                "WHERE id = %s",
+                (
+                    data["knowledge_type"],
+                    data["knowledge_key"],
+                    data.get("name"),
+                    data.get("knowledge_value"),
+                    data.get("associate_tables"),
+                    data.get("explanation_type"),
+                    data.get("updated_by", "admin"),
+                    item_id,
+                ),
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"知识条目 {item_id} 不存在"}
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# ==================== 可选关联表 ====================
+
+# 常量来自 migrate_nl2sql.py
+_NEW_DB_NAME = "jst_flat_table_clone_moi_core"
+_NEW_DATABASE_ID = 5
+_NEW_CATALOG_ID = 10001
+_TABLE_ID_MAP = {
+    "revenue_cost": 13,
+    "bpc_consolidated_report": 1,
+    "sales_orders_result": 14,
+    "open_orders_result": 9,
+    "output_value_lg": 11,
+    "output_amount_lg": 10,
+    "output_value_pc": 12,
+    "staff_info": 16,
+    "sales_vat_invoice": 15,
+    "tax_ledger": 17,
+    "main_companies": 8,
+    "main_business_unit": 7,
+    "logistics": 5,
+    "capacity": 2,
+    "electricity_bill_summary": 3,
+    "inventory_pc": 4,
+}
+
+
+def get_available_tables(target: str) -> dict:
+    """获取 jst_flat_table_clone_moi_core 中的可选表列表（含描述）"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT TABLE_NAME, TABLE_COMMENT "
+                "FROM information_schema.tables "
+                "WHERE TABLE_SCHEMA = 'jst_flat_table_clone_moi_core' "
+                "ORDER BY TABLE_NAME"
+            )
+            rows = cur.fetchall()
+
+        tables = []
+        for name, comment in rows:
+            tables.append({
+                "name": name,
+                "table_id": _TABLE_ID_MAP.get(name),
+                "comment": comment or "",
+            })
+
+        return {
+            "ok": True,
+            "db_name": _NEW_DB_NAME,
+            "database_id": _NEW_DATABASE_ID,
+            "catalog_id": _NEW_CATALOG_ID,
+            "tables": tables,
+        }
+    finally:
+        conn.close()
+
+
+def build_tables_json(table_names: list) -> str:
+    """根据选中的表名列表，构建 knowledge_base.tables 字段的 JSON"""
+    table_ids = []
+    valid_names = []
+    for name in table_names:
+        tid = _TABLE_ID_MAP.get(name)
+        if tid is not None:
+            table_ids.append(tid)
+            valid_names.append(name)
+        else:
+            valid_names.append(name)
+
+    entry = {
+        "db_name": _NEW_DB_NAME,
+        "table_ids": table_ids,
+        "table_names": valid_names,
+        "parents": [f"catalog-{_NEW_CATALOG_ID}", f"database-{_NEW_DATABASE_ID}"],
+    }
+    return json.dumps([entry], ensure_ascii=False)
+
+
+# ==================== 删除知识条目 ====================
+
+def delete_knowledge_item(target: str, item_id: int) -> dict:
+    """删除一条 nl2sql_knowledge"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM moi.nl2sql_knowledge WHERE id = %s", (item_id,)
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"知识条目 {item_id} 不存在"}
+        return {"ok": True}
     finally:
         conn.close()

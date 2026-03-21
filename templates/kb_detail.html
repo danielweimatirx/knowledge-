@@ -4,75 +4,273 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>知识库详情 - NL2SQL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #0f172a; --card: #1e293b; --border: #334155; --accent: #38bdf8; --green: #4ade80; --red: #f87171; --text: #e2e8f0; --muted: #94a3b8; --purple: #8b5cf6; --yellow: #fbbf24; }
+  :root {
+    --bg: #f5f0e8; --bg-deep: #ebe4d6; --card: #fffcf5;
+    --border: #d4c9b4; --border-light: #e8dfd0;
+    --accent: #5a7a5a; --accent-light: #7a9e7a; --accent-glow: rgba(90,122,90,0.12);
+    --warm: #c17f4e; --warm-light: rgba(193,127,78,0.1);
+    --clay: #b85c3a; --clay-light: rgba(184,92,58,0.08);
+    --green: #4a7a4a; --green-light: rgba(74,122,74,0.1);
+    --red: #b85c3a; --red-light: rgba(184,92,58,0.1);
+    --yellow: #b8923a; --yellow-light: rgba(184,146,58,0.1);
+    --text: #3d3428; --text-secondary: #6b5e4f; --muted: #9a8b78;
+    --shadow: 0 2px 20px rgba(61,52,40,0.06);
+    --shadow-hover: 0 8px 32px rgba(61,52,40,0.1);
+    --radius: 16px; --radius-sm: 10px; --radius-xs: 6px;
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
-  a { color: var(--accent); text-decoration: none; }
+  body {
+    font-family: var(--font-body); background: var(--bg);
+    color: var(--text); min-height: 100vh;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; opacity: 0.3;
+    pointer-events: none; z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+  .container { max-width: 1400px; margin: 0 auto; padding: 40px 28px 60px; }
+  a { color: var(--accent); text-decoration: none; font-weight: 500; }
   a:hover { text-decoration: underline; }
 
-  .top-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-  .top-bar h1 { font-size: 1.3rem; color: #fff; }
+  /* Top bar */
+  .top-bar {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 28px; flex-wrap: wrap;
+    animation: fadeUp 0.5s ease-out;
+  }
+  .top-bar h1 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 400; color: var(--text); }
   .top-bar .nav { font-size: 0.85rem; margin-left: auto; display: flex; gap: 16px; }
 
-  /* 知识库信息卡 */
-  .kb-info { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 20px; }
-  .kb-info .name { font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
-  .kb-info .usage { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
-  .kb-meta { display: flex; gap: 20px; font-size: 0.78rem; color: var(--muted); flex-wrap: wrap; margin-bottom: 14px; }
+  /* KB info card */
+  .kb-info {
+    background: var(--card); border: 1px solid var(--border-light);
+    border-radius: var(--radius); padding: 28px; margin-bottom: 24px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+    animation: fadeUp 0.5s ease-out 0.05s both;
+  }
+  .kb-info::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--warm));
+  }
+  .kb-info .name {
+    font-family: var(--font-display); font-size: 1.3rem; font-weight: 400;
+    color: var(--text); margin-bottom: 8px;
+  }
+  .kb-info .name .id-tag { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); font-weight: 400; margin-left: 8px; }
+  .kb-info .usage { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 16px; }
+  .kb-meta { display: flex; gap: 20px; font-size: 0.78rem; color: var(--muted); flex-wrap: wrap; margin-bottom: 16px; }
   .kb-meta span { display: flex; align-items: center; gap: 4px; }
-  .tables-section { margin-top: 10px; }
-  .tables-section h3 { font-size: 0.82rem; color: var(--accent); margin-bottom: 8px; }
+  .tables-section { margin-top: 12px; }
+  .tables-section h3 {
+    font-family: var(--font-display); font-size: 0.9rem; font-weight: 400;
+    color: var(--text); margin-bottom: 10px;
+  }
   .table-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .table-chip { background: rgba(139,92,246,0.12); color: var(--purple); padding: 4px 12px; border-radius: 6px; font-size: 0.8rem; font-family: 'SF Mono', monospace; }
+  .table-chip {
+    background: var(--accent-glow); color: var(--accent);
+    padding: 4px 14px; border-radius: 14px;
+    font-size: 0.78rem; font-family: var(--font-mono);
+  }
 
-  /* 知识条目 */
-  .section-title { font-size: 1rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-  .section-title .count { font-size: 0.78rem; color: var(--muted); font-weight: 400; }
+  /* Section title */
+  .section-title {
+    font-family: var(--font-display); font-size: 1.1rem; font-weight: 400;
+    color: var(--text); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+    animation: fadeUp 0.5s ease-out 0.1s both;
+  }
+  .section-title .count { font-family: var(--font-body); font-size: 0.78rem; color: var(--muted); font-weight: 400; }
 
-  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-  .filter-btn { padding: 5px 14px; border-radius: 16px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.78rem; cursor: pointer; font-family: inherit; transition: all .15s; }
-  .filter-btn.active, .filter-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  button {
+    font-family: var(--font-body); font-size: 0.85rem; padding: 9px 20px;
+    border-radius: 24px; border: none; cursor: pointer; font-weight: 500;
+    transition: all 0.25s ease; display: inline-flex; align-items: center; gap: 6px;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-light); }
+  .btn-warm { background: var(--warm); color: #fff; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg-deep); color: var(--text); }
+  .btn-danger { background: var(--red-light); color: var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
 
-  .nk-list { display: flex; flex-direction: column; gap: 10px; }
-  .nk-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color .15s; }
-  .nk-card:hover { border-color: var(--accent); }
-  .nk-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-  .nk-header .nk-name { font-weight: 600; font-size: 0.9rem; color: #fff; }
-  .nk-header .nk-id { font-size: 0.72rem; color: var(--muted); }
-  .type-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
-  .type-logic { background: rgba(74,222,128,0.12); color: var(--green); }
-  .type-sql { background: rgba(56,189,248,0.12); color: var(--accent); }
-  .type-other { background: rgba(251,191,36,0.12); color: var(--yellow); }
+  /* Filter bar */
+  .nk-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; animation: fadeUp 0.5s ease-out 0.12s both; }
+  .nk-search {
+    font-family: var(--font-body); font-size: 0.85rem; padding: 7px 16px;
+    border-radius: 24px; border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); width: 220px; transition: border-color 0.2s; outline: none;
+  }
+  .nk-search:focus { border-color: var(--accent); }
+  .nk-search-hint { font-size: 0.72rem; color: var(--muted); margin-left: 2px; }
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 6px 16px; border-radius: 20px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); font-size: 0.78rem; cursor: pointer;
+    font-family: var(--font-body); transition: all 0.2s;
+  }
+  .filter-btn.active, .filter-btn:hover {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
 
-  .nk-key { font-size: 0.84rem; color: var(--text); line-height: 1.7; margin-bottom: 8px; white-space: pre-wrap; word-break: break-all; }
-  .nk-key.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .expand-btn { font-size: 0.75rem; color: var(--accent); cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; margin-bottom: 8px; }
+  /* Knowledge cards */
+  .nk-list { display: flex; flex-direction: column; gap: 12px; }
+  .nk-card {
+    background: var(--card); border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm); padding: 20px;
+    box-shadow: var(--shadow); transition: all 0.25s;
+    animation: fadeUp 0.4s ease-out both;
+  }
+  .nk-card:hover { box-shadow: var(--shadow-hover); }
+  .nk-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .nk-header .nk-name { font-family: var(--font-display); font-weight: 400; font-size: 0.95rem; color: var(--text); }
+  .nk-header .nk-id { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); }
+  .type-badge { display: inline-block; padding: 3px 12px; border-radius: 14px; font-size: 0.68rem; font-weight: 600; }
+  .type-logic { background: var(--green-light); color: var(--green); }
+  .type-sql { background: var(--accent-glow); color: var(--accent); }
+  .type-other { background: var(--yellow-light); color: var(--yellow); }
+  .type-result { background: var(--clay-light); color: var(--clay); }
+
+  .nk-key {
+    font-size: 0.84rem; color: var(--text-secondary); line-height: 1.8;
+    margin-bottom: 10px; white-space: pre-wrap; word-break: break-all;
+  }
+  .nk-key.collapsed { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .expand-btn {
+    font-size: 0.75rem; color: var(--accent); cursor: pointer;
+    background: none; border: none; font-family: var(--font-body);
+    padding: 0; margin-bottom: 8px; font-weight: 500;
+  }
+  .expand-btn:hover { transform: none; text-decoration: underline; }
 
   .nk-detail-row { display: flex; gap: 16px; font-size: 0.75rem; color: var(--muted); flex-wrap: wrap; }
-  .nk-detail-row .label { color: var(--muted); }
-  .nk-assoc { margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
-  .nk-assoc-tag { background: rgba(139,92,246,0.1); color: var(--purple); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+  .nk-assoc { margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .nk-assoc-tag {
+    background: var(--warm-light); color: var(--warm);
+    padding: 3px 10px; border-radius: 12px; font-size: 0.68rem;
+    font-family: var(--font-mono);
+  }
+  .nk-value {
+    margin-top: 10px; background: #2c2418; border-radius: var(--radius-xs);
+    padding: 14px; font-size: 0.78rem; font-family: var(--font-mono);
+    max-height: 200px; overflow-y: auto; white-space: pre-wrap;
+    word-break: break-all; color: #d4c9b4; display: none;
+  }
+  .nk-actions { display: flex; gap: 6px; margin-left: auto; }
+  .nk-actions button { font-size: 0.7rem; padding: 4px 12px; border-radius: 14px; }
 
-  .nk-value { margin-top: 8px; background: #020617; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-size: 0.78rem; font-family: 'SF Mono', monospace; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: var(--muted); display: none; }
+  .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 0.9rem; }
+  .error-msg { text-align: center; padding: 40px; color: var(--red); }
+  .empty { text-align: center; padding: 48px; color: var(--muted); font-size: 0.9rem; }
+  mark.hl { background: rgba(193,127,78,0.25); color: inherit; border-radius: 2px; padding: 0 1px; }
 
-  .loading { text-align: center; padding: 60px; color: var(--muted); }
-  .error-msg { text-align: center; padding: 40px; color: #f87171; }
-  .empty { text-align: center; padding: 40px; color: var(--muted); }
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(61,52,40,0.4); backdrop-filter: blur(4px);
+    z-index: 100;
+  }
+  .modal-overlay.show { display: block; }
+  .modal {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 680px; max-width: 92vw;
+    background: var(--card); border-left: 1px solid var(--border-light);
+    padding: 32px 28px; overflow-y: auto;
+    box-shadow: -8px 0 40px rgba(61,52,40,0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 101; display: flex; flex-direction: column;
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
+  .modal-overlay.show .modal { transform: translateX(0); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .modal h2 { font-family: var(--font-display); font-size: 1.2rem; color: var(--text); margin-bottom: 20px; font-weight: 400; }
+  .modal .field { margin-bottom: 16px; }
+  .modal .field label {
+    display: block; font-size: 0.72rem; color: var(--muted);
+    margin-bottom: 5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .modal .field input, .modal .field textarea, .modal .field select {
+    width: 100%; font-family: var(--font-body); font-size: 0.88rem;
+    padding: 10px 14px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); resize: vertical; transition: border-color 0.2s;
+  }
+  .modal .field input:focus, .modal .field textarea:focus, .modal .field select:focus { outline: none; border-color: var(--accent); }
+  .modal .field textarea { min-height: 280px; }
+  .modal .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
 </style>
 </head>
 <body>
+<div class="container">
 
 <div class="top-bar">
   <h1 id="pageTitle">知识库详情</h1>
   <div class="nav">
     <a href="javascript:history.back()">← 返回列表</a>
-    <a href="/">迁移控制台</a>
+    <a href="/">控制台</a>
   </div>
 </div>
 
 <div id="kbInfo"></div>
-<div id="nkSection"></div>
+
+<div id="nkTitleBar" style="display:none">
+  <div class="section-title">知识条目 <span class="count" id="nkCount"></span>
+    <button class="btn-warm" style="font-size:0.78rem;padding:6px 16px;margin-left:12px" onclick="openItemModal()">+ 新增知识条目</button>
+  </div>
+  <div class="nk-toolbar">
+    <input type="text" id="nkSearch" class="nk-search" placeholder="搜索名称、内容…" oninput="applyNkFilter()" oncompositionstart="nkComposing=true" oncompositionend="nkComposing=false;applyNkFilter()">
+    <div class="filter-bar" id="nkFilterBar"></div>
+  </div>
+</div>
+<div id="nkList"></div>
+
+</div><!-- /container -->
+
+<!-- 新增/编辑知识条目弹窗 -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal">
+    <h2 id="itemModalTitle">新增知识条目</h2>
+    <input type="hidden" id="itemEditId">
+    <div class="field">
+      <label>知识类型 *</label>
+      <select id="itemType">
+        <option value="logic">logic</option>
+        <option value="sql">sql</option>
+        <option value="result">result</option>
+        <option value="other">other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>名称</label>
+      <input type="text" id="itemName" placeholder="知识名称（可选）">
+    </div>
+    <div class="field">
+      <label>知识内容 (knowledge_key) *</label>
+      <textarea id="itemKey" style="min-height:140px" placeholder="知识的主要内容…"></textarea>
+    </div>
+    <input type="hidden" id="itemValue">
+    <input type="hidden" id="itemExplType">
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="closeItemModal()">取消</button>
+      <button class="btn-primary" onclick="saveItem()">保存</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const KB_ID = {{ kb_id }};
@@ -80,141 +278,199 @@ const params = new URLSearchParams(location.search);
 const TARGET = params.get('target') || 'remote';
 let allItems = [];
 let currentFilter = 'all';
+let nkSearchQuery = '';
+let kbTableNames = [];
+let tableCommentMap = {};
+
+async function loadTableComments() {
+  try {
+    const res = await fetch(`/api/tables?target=${TARGET}`);
+    const d = await res.json();
+    if (d.ok) d.tables.forEach(t => { if (t.comment) tableCommentMap[t.name] = t.comment; });
+  } catch(e) {}
+}
+
+function tableLabel(name) {
+  const c = tableCommentMap[name];
+  return c ? `${name} · ${c}` : name;
+}
 
 async function load() {
   document.getElementById('kbInfo').innerHTML = '<div class="loading">加载中…</div>';
-
   try {
     const res = await fetch(`/api/kb/${KB_ID}?target=${TARGET}`);
     const d = await res.json();
-    if (!d.ok) {
-      document.getElementById('kbInfo').innerHTML = `<div class="error-msg">❌ ${d.msg}</div>`;
-      return;
-    }
-
+    if (!d.ok) { document.getElementById('kbInfo').innerHTML = `<div class="error-msg">❌ ${d.msg}</div>`; return; }
     renderKbInfo(d.knowledge_base);
+    // 提取知识库关联表名，知识条目自动继承
+    kbTableNames = [];
+    try { JSON.parse(d.knowledge_base.tables_json || '[]').forEach(t => kbTableNames.push(...(t.table_names || []))); } catch(e) {}
     allItems = d.knowledge_items || [];
     renderKnowledgeItems(allItems);
-  } catch(e) {
-    document.getElementById('kbInfo').innerHTML = `<div class="error-msg">❌ ${e.message}</div>`;
-  }
+  } catch(e) { document.getElementById('kbInfo').innerHTML = `<div class="error-msg">❌ ${e.message}</div>`; }
 }
 
 function renderKbInfo(kb) {
   document.getElementById('pageTitle').textContent = kb.name;
   document.title = kb.name + ' - NL2SQL';
-
   let tableNames = [];
   try { JSON.parse(kb.tables_json || '[]').forEach(t => tableNames.push(...(t.table_names || []))); } catch(e) {}
 
   document.getElementById('kbInfo').innerHTML = `
     <div class="kb-info">
-      <div class="name">${esc(kb.name)} <span style="font-size:0.78rem;color:var(--muted);font-weight:400">#${kb.id}</span></div>
+      <div class="name">${esc(kb.name)}<span class="id-tag">#${kb.id}</span></div>
       <div class="usage">${esc(kb.usage_notes || '暂无用途说明')}</div>
       <div class="kb-meta">
-        <span>👤 创建人: ${esc(kb.created_by)}</span>
-        <span>✏️ 更新人: ${esc(kb.updated_by)}</span>
-        <span>📅 创建: ${(kb.created_at||'').replace('T',' ')}</span>
-        <span>📅 更新: ${(kb.updated_at||'').replace('T',' ')}</span>
+        <span>创建人: ${esc(kb.created_by)}</span>
+        <span>更新人: ${esc(kb.updated_by)}</span>
+        <span>创建: ${(kb.created_at||'').replace('T',' ')}</span>
+        <span>更新: ${(kb.updated_at||'').replace('T',' ')}</span>
       </div>
       ${tableNames.length ? `
         <div class="tables-section">
           <h3>关联表 (${tableNames.length})</h3>
-          <div class="table-chips">${tableNames.map(n => `<span class="table-chip">${esc(n)}</span>`).join('')}</div>
+          <div class="table-chips">${tableNames.map(n => `<span class="table-chip">${esc(tableLabel(n))}</span>`).join('')}</div>
         </div>` : ''}
     </div>`;
 }
 
+function getFilteredItems() {
+  let items = currentFilter === 'all' ? allItems : allItems.filter(i => i.knowledge_type === currentFilter);
+  if (nkSearchQuery) {
+    const q = nkSearchQuery.toLowerCase();
+    items = items.filter(i =>
+      (i.name || '').toLowerCase().includes(q) ||
+      (i.knowledge_key || '').toLowerCase().includes(q) ||
+      (i.knowledge_type || '').toLowerCase().includes(q)
+    );
+  }
+  return items;
+}
+
+let nkComposing = false;
+function applyNkFilter() {
+  if (nkComposing) return;
+  nkSearchQuery = document.getElementById('nkSearch').value.trim();
+  renderKnowledgeItems(getFilteredItems());
+}
+
 function renderKnowledgeItems(items) {
-  const wrap = document.getElementById('nkSection');
+  const titleBar = document.getElementById('nkTitleBar');
+  const listWrap = document.getElementById('nkList');
+  const types = [...new Set(allItems.map(i => i.knowledge_type))];
 
-  // 收集所有 knowledge_type
-  const types = [...new Set(items.map(i => i.knowledge_type))];
+  // 更新标题栏（固定区域，不重建搜索框）
+  titleBar.style.display = allItems.length || nkSearchQuery ? '' : 'none';
+  document.getElementById('nkCount').textContent = `(${items.length})`;
 
-  let filterHtml = `<div class="filter-bar">
-    <button class="filter-btn ${currentFilter==='all'?'active':''}" onclick="filterBy('all')">全部 (${allItems.length})</button>`;
+  // 更新筛选按钮（不碰搜索框）
+  let filterHtml = `<button class="filter-btn ${currentFilter==='all'?'active':''}" onclick="filterBy('all')">全部 (${allItems.length})</button>`;
   types.forEach(t => {
     const cnt = allItems.filter(i => i.knowledge_type === t).length;
     filterHtml += `<button class="filter-btn ${currentFilter===t?'active':''}" onclick="filterBy('${t}')">${esc(t)} (${cnt})</button>`;
   });
-  filterHtml += '</div>';
+  document.getElementById('nkFilterBar').innerHTML = filterHtml;
 
   if (!items.length) {
-    wrap.innerHTML = `
-      <div class="section-title">知识条目 <span class="count">(0)</span></div>
-      ${filterHtml}
-      <div class="empty">该知识库下暂无知识条目</div>`;
+    const msg = nkSearchQuery ? '无匹配结果' : '该知识库下暂无知识条目';
+    listWrap.innerHTML = `<div class="empty">${msg}</div>`;
     return;
   }
 
-  let html = `<div class="section-title">知识条目 <span class="count">(${items.length})</span></div>`;
-  html += filterHtml;
-  html += '<div class="nk-list">';
-
+  let html = '<div class="nk-list">';
   items.forEach((nk, idx) => {
-    const typeClass = nk.knowledge_type === 'logic' ? 'type-logic' : nk.knowledge_type === 'sql' ? 'type-sql' : 'type-other';
-    let assocTables = [];
-    try { assocTables = JSON.parse(nk.associate_tables || '[]'); } catch(e) {}
+    const typeClass = nk.knowledge_type === 'logic' ? 'type-logic' : nk.knowledge_type === 'sql' ? 'type-sql' : nk.knowledge_type === 'result' ? 'type-result' : 'type-other';
 
     html += `
-      <div class="nk-card">
+      <div class="nk-card" style="animation-delay:${idx * 0.03}s">
         <div class="nk-header">
           <span class="type-badge ${typeClass}">${esc(nk.knowledge_type)}</span>
-          ${nk.name ? `<span class="nk-name">${esc(nk.name)}</span>` : ''}
+          ${nk.name ? `<span class="nk-name">${highlight(nk.name)}</span>` : ''}
           <span class="nk-id">#${nk.id}</span>
-          ${nk.explanation_type ? `<span style="font-size:0.72rem;color:var(--muted)">解释类型: ${esc(nk.explanation_type)}</span>` : ''}
+          <div class="nk-actions">
+            <button class="btn-warm" onclick="editItem(${nk.id})">编辑</button>
+            <button class="btn-danger" onclick="deleteItem(${nk.id})">删除</button>
+          </div>
         </div>
-        <div class="nk-key collapsed" id="key-${idx}">${esc(nk.knowledge_key)}</div>
+        <div class="nk-key collapsed" id="key-${idx}">${highlight(nk.knowledge_key)}</div>
         <button class="expand-btn" onclick="toggleExpand(${idx})">展开全文 ▼</button>
-        ${assocTables.length ? `<div class="nk-assoc">${assocTables.map(t => `<span class="nk-assoc-tag">${esc(t)}</span>`).join('')}</div>` : ''}
         <div class="nk-detail-row">
-          <span>👤 ${esc(nk.created_by)}</span>
-          <span>📅 ${(nk.updated_at||'').replace('T',' ')}</span>
+          <span>${esc(nk.created_by)}</span>
+          <span>${(nk.updated_at||'').replace('T',' ')}</span>
         </div>
-        ${nk.knowledge_value ? `<button class="expand-btn" onclick="toggleValue(${idx})" style="margin-top:6px">查看 knowledge_value ▼</button><div class="nk-value" id="val-${idx}">${esc(nk.knowledge_value)}</div>` : ''}
       </div>`;
   });
-
   html += '</div>';
-  wrap.innerHTML = html;
+  listWrap.innerHTML = html;
 }
 
 function toggleExpand(idx) {
   const el = document.getElementById('key-' + idx);
   const btn = el.nextElementSibling;
-  if (el.classList.contains('collapsed')) {
-    el.classList.remove('collapsed');
-    btn.textContent = '收起 ▲';
-  } else {
-    el.classList.add('collapsed');
-    btn.textContent = '展开全文 ▼';
-  }
+  if (el.classList.contains('collapsed')) { el.classList.remove('collapsed'); btn.textContent = '收起 ▲'; }
+  else { el.classList.add('collapsed'); btn.textContent = '展开全文 ▼'; }
 }
-
 function toggleValue(idx) {
   const el = document.getElementById('val-' + idx);
   const btn = el.previousElementSibling;
-  if (el.style.display === 'none' || !el.style.display) {
-    el.style.display = 'block';
-    btn.textContent = '隐藏 knowledge_value ▲';
-  } else {
-    el.style.display = 'none';
-    btn.textContent = '查看 knowledge_value ▼';
-  }
+  if (el.style.display === 'none' || !el.style.display) { el.style.display = 'block'; btn.textContent = '隐藏 knowledge_value ▲'; }
+  else { el.style.display = 'none'; btn.textContent = '查看 knowledge_value ▼'; }
+}
+function filterBy(type) { currentFilter = type; renderKnowledgeItems(getFilteredItems()); }
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function highlight(s) {
+  if (!s || !nkSearchQuery) return esc(s);
+  const escaped = esc(s);
+  const q = nkSearchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('(' + esc(q) + ')', 'gi');
+  return escaped.replace(re, '<mark class="hl">$1</mark>');
 }
 
-function filterBy(type) {
-  currentFilter = type;
-  const filtered = type === 'all' ? allItems : allItems.filter(i => i.knowledge_type === type);
-  renderKnowledgeItems(filtered);
+// ==================== 知识条目 CRUD ====================
+function openItemModal(item) {
+  document.getElementById('itemModalTitle').textContent = item ? '编辑知识条目' : '新增知识条目';
+  document.getElementById('itemEditId').value = item ? item.id : '';
+  document.getElementById('itemType').value = item ? item.knowledge_type : 'logic';
+  document.getElementById('itemName').value = item ? (item.name || '') : '';
+  document.getElementById('itemKey').value = item ? (item.knowledge_key || '') : '';
+  document.getElementById('itemModal').classList.add('show');
+}
+function closeItemModal() { document.getElementById('itemModal').classList.remove('show'); }
+function editItem(itemId) { const item = allItems.find(i => i.id === itemId); if (item) openItemModal(item); }
+
+async function saveItem() {
+  const editId = document.getElementById('itemEditId').value;
+  const knowledgeKey = document.getElementById('itemKey').value.trim();
+  if (!knowledgeKey) { alert('知识内容必填'); return; }
+  // 默认值与现有数据保持一致
+  const body = {
+    knowledge_type: document.getElementById('itemType').value,
+    knowledge_key: knowledgeKey,
+    name: document.getElementById('itemName').value.trim() || null,
+    knowledge_value: '[""]',
+    associate_tables: null,
+    explanation_type: 'global',
+  };
+  const url = editId ? `/api/items/${editId}?target=${TARGET}` : `/api/kb/${KB_ID}/items?target=${TARGET}`;
+  try {
+    const res = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!d.ok) { alert(d.msg); return; }
+    closeItemModal(); load();
+  } catch(e) { alert(e.message); }
 }
 
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+async function deleteItem(itemId) {
+  if (!confirm('确定删除这条知识？')) return;
+  try {
+    const res = await fetch(`/api/items/${itemId}?target=${TARGET}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (!d.ok) { alert(d.msg); return; }
+    load();
+  } catch(e) { alert(e.message); }
 }
 
-load();
+loadTableComments().then(() => load());
 </script>
 </body>
 </html>
