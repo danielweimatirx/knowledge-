@@ -196,6 +196,17 @@ def api_item_delete(item_id):
         return jsonify({"ok": False, "msg": str(e)}), 500
 
 
+@app.route("/api/kb/<int:kb_id>", methods=["DELETE"])
+def api_kb_delete(kb_id):
+    target = request.args.get("target", "remote")
+    try:
+        result = db_service.delete_knowledge_base(target, kb_id)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
 @app.route("/api/tables")
 def api_tables():
     target = request.args.get("target", "remote")

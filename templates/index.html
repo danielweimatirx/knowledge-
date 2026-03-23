@@ -100,6 +100,8 @@
   .btn-data:hover { background: var(--border-light); }
   .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
   .btn-ghost:hover { background: var(--bg-deep); color: var(--text); }
+  .btn-danger { background: var(--red-light); color: var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
 </style>
 </head>
 <body>
@@ -564,7 +566,7 @@ async function runMigration() {
     body: JSON.stringify({ target, dry_run: dryRun }),
   });
   const data = await res.json();
-  if (!data.ok) { alert(data.msg); btn.disabled = false; return; }
+  if (!data.ok) { showDialog(data.msg); btn.disabled = false; return; }
   logOffset = 0;
   document.getElementById('logBox').style.display = 'block';
   document.getElementById('logBox').innerHTML = '';
@@ -782,7 +784,10 @@ function renderKbGrid(data) {
           </div>
           ${tableNames.length ? `<div class="table-tags">${tableNames.map(n => `<span class="table-tag">${escHtml(tableLabel(n))}</span>`).join('')}</div>` : ''}
         </div>
-        <button class="btn-warm" style="align-self:flex-start;font-size:0.72rem;padding:5px 14px;margin-top:8px" onclick="event.stopPropagation();editKb(${kb.id},'${target}')">编辑</button>
+        <div style="display:flex;gap:6px;margin-top:8px;align-self:flex-start">
+          <button class="btn-warm" style="font-size:0.72rem;padding:5px 14px" onclick="event.stopPropagation();editKb(${kb.id},'${target}')">编辑</button>
+          <button class="btn-danger" style="font-size:0.72rem;padding:5px 14px" onclick="event.stopPropagation();deleteKb(${kb.id},'${escHtml(kb.name)}')">删除</button>
+        </div>
       </div>`;
   });
   html += '</div>';
@@ -924,7 +929,7 @@ function renderTableOptions() {
   const grid = document.getElementById('kbTablesGrid');
   let html = '';
   availableTables.forEach((t, i) => {
-    html += `<div class="ms-option" data-name="${escHtml(t.name)}" onclick="toggleTableOption(${i})">
+    html += `<div class="ms-option" data-name="${escHtml(t.name)}" onclick="toggleTableOption(${i}, event)">
       <input type="checkbox" class="kb-table-cb" value="${escHtml(t.name)}" tabindex="-1">
       <div class="ms-option-info">
         <div><span class="ms-option-name">${escHtml(t.name)}</span>${t.table_id ? `<span class="ms-option-id">#${t.table_id}</span>` : ''}</div>
@@ -954,9 +959,9 @@ document.addEventListener('click', function(e) {
   }
 });
 
-function toggleTableOption(idx) {
+function toggleTableOption(idx, evt) {
   const cb = document.querySelectorAll('.kb-table-cb')[idx];
-  cb.checked = !cb.checked;
+  if (!evt || evt.target !== cb) cb.checked = !cb.checked;
   cb.closest('.ms-option').classList.toggle('selected', cb.checked);
   updateTableDisplay();
 }
@@ -1050,28 +1055,73 @@ async function openKbModal(kb) {
 function closeKbModal() { document.getElementById('kbModal').classList.remove('show'); }
 
 async function editKb(kbId, target) {
-  try { const res = await fetch(`/api/kb/${kbId}?target=${target}`); const d = await res.json(); if (!d.ok) { alert(d.msg); return; } openKbModal(d.knowledge_base); } catch(e) { alert(e.message); }
+  try { const res = await fetch(`/api/kb/${kbId}?target=${target}`); const d = await res.json(); if (!d.ok) { showDialog(d.msg); return; } openKbModal(d.knowledge_base); } catch(e) { showDialog(e.message); }
+}
+
+async function deleteKb(kbId, name) {
+  if (!await showDialog(`确定删除知识库「${name}」及其所有知识条目？\n此操作不可恢复。`, {type:'confirm'})) return;
+  const target = document.getElementById('selTarget').value;
+  try {
+    const res = await fetch(`/api/kb/${kbId}?target=${target}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    loadKbList();
+  } catch(e) { showDialog(e.message); }
 }
 
 async function saveKb() {
   const target = document.getElementById('selTarget').value;
   const editId = document.getElementById('kbEditId').value;
   const name = document.getElementById('kbName').value.trim();
-  if (!name) { alert('知识库名称必填'); return; }
+  if (!name) { showDialog('知识库名称必填'); return; }
   const body = { name, usage_notes: document.getElementById('kbUsageNotes').value.trim() || null, tables_json: buildTablesJson(getSelectedTableNames()), files_json: document.getElementById('kbFilesJson').value.trim() || null };
   const url = editId ? `/api/kb/${editId}?target=${target}` : `/api/kb?target=${target}`;
   try {
     const res = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const d = await res.json();
-    if (!d.ok) { alert(d.msg); return; }
+    if (!d.ok) { showDialog(d.msg); return; }
     closeKbModal(); loadKbList();
-  } catch(e) { alert(e.message); }
+  } catch(e) { showDialog(e.message); }
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// ===== 自定义对话框 =====
+function showDialog(msg, {type = 'alert', onConfirm = null} = {}) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('dialogOverlay');
+    document.getElementById('dialogMsg').textContent = msg;
+    const confirmBtn = document.getElementById('dialogConfirm');
+    const cancelBtn = document.getElementById('dialogCancel');
+    if (type === 'confirm') {
+      confirmBtn.textContent = '确定';
+      cancelBtn.style.display = '';
+    } else {
+      confirmBtn.textContent = '好的';
+      cancelBtn.style.display = 'none';
+    }
+    overlay.classList.add('show');
+    const cleanup = (val) => { overlay.classList.remove('show'); resolve(val); };
+    confirmBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    overlay.onclick = (e) => { if (e.target === overlay) cleanup(false); };
+  });
+}
+
 // ===== 页面加载自动拉取知识库列表 =====
 loadTableComments().then(() => loadKbList());
 </script>
+
+<!-- 自定义对话框 -->
+<div class="modal-overlay" id="dialogOverlay" style="z-index:200">
+  <div class="modal" style="width:400px;text-align:center;padding:32px 28px 24px">
+    <div id="dialogMsg" style="font-size:0.92rem;color:var(--text);line-height:1.7;margin-bottom:24px;white-space:pre-wrap"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn-ghost" id="dialogCancel">取消</button>
+      <button class="btn-primary" id="dialogConfirm">好的</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

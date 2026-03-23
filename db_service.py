@@ -98,7 +98,7 @@ def get_knowledge_base_list(target: str) -> dict:
                 "  SELECT knowledge_base_id, COUNT(*) AS c "
                 "  FROM moi.nl2sql_knowledge GROUP BY knowledge_base_id"
                 ") cnt ON kb.id = cnt.knowledge_base_id "
-                "ORDER BY kb.id"
+                "ORDER BY kb.id DESC"
             )
             rows = cur.fetchall()
         return {"ok": True, "data": _serialize(rows)}
@@ -373,6 +373,25 @@ def delete_knowledge_item(target: str, item_id: int) -> dict:
             conn.commit()
             if cur.rowcount == 0:
                 return {"ok": False, "msg": f"知识条目 {item_id} 不存在"}
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+def delete_knowledge_base(target: str, kb_id: int) -> dict:
+    """删除知识库及其下所有知识条目"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM moi.nl2sql_knowledge WHERE knowledge_base_id = %s", (kb_id,)
+            )
+            cur.execute(
+                "DELETE FROM moi.knowledge_base WHERE id = %s", (kb_id,)
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"知识库 {kb_id} 不存在"}
         return {"ok": True}
     finally:
         conn.close()
