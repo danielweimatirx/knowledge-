@@ -238,6 +238,7 @@
 <div id="nkTitleBar" style="display:none">
   <div class="section-title">知识条目 <span class="count" id="nkCount"></span>
     <button class="btn-warm" style="font-size:0.78rem;padding:6px 16px;margin-left:12px" onclick="openItemModal()">+ 新增知识条目</button>
+    <button class="btn-ghost" style="font-size:0.78rem;padding:6px 16px" onclick="exportCsv()">导出 CSV</button>
   </div>
   <div class="nk-toolbar">
     <input type="text" id="nkSearch" class="nk-search" placeholder="搜索名称、内容…" oninput="applyNkFilter()" oncompositionstart="nkComposing=true" oncompositionend="nkComposing=false;applyNkFilter()">
@@ -369,7 +370,7 @@ function renderKnowledgeItems(items) {
   const types = [...new Set(allItems.map(i => i.knowledge_type))];
 
   // 更新标题栏（固定区域，不重建搜索框）
-  titleBar.style.display = allItems.length || nkSearchQuery ? '' : 'none';
+  titleBar.style.display = '';
   document.getElementById('nkCount').textContent = `(${items.length})`;
 
   // 更新筛选按钮（不碰搜索框）
@@ -450,7 +451,7 @@ function editItem(itemId) { const item = allItems.find(i => i.id === itemId); if
 async function saveItem() {
   const editId = document.getElementById('itemEditId').value;
   const knowledgeKey = document.getElementById('itemKey').value.trim();
-  if (!knowledgeKey) { alert('知识内容必填'); return; }
+  if (!knowledgeKey) { showDialog('知识内容必填'); return; }
   // 默认值与现有数据保持一致
   const body = {
     knowledge_type: document.getElementById('itemType').value,
@@ -464,22 +465,75 @@ async function saveItem() {
   try {
     const res = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const d = await res.json();
-    if (!d.ok) { alert(d.msg); return; }
+    if (!d.ok) { showDialog(d.msg); return; }
     closeItemModal(); load();
-  } catch(e) { alert(e.message); }
+  } catch(e) { showDialog(e.message); }
 }
 
 async function deleteItem(itemId) {
-  if (!confirm('确定删除这条知识？')) return;
+  if (!await showDialog('确定删除这条知识？', {type:'confirm'})) return;
   try {
     const res = await fetch(`/api/items/${itemId}?target=${TARGET}`, { method: 'DELETE' });
     const d = await res.json();
-    if (!d.ok) { alert(d.msg); return; }
+    if (!d.ok) { showDialog(d.msg); return; }
     load();
-  } catch(e) { alert(e.message); }
+  } catch(e) { showDialog(e.message); }
+}
+
+function exportCsv() {
+  if (!allItems.length) { showDialog('暂无数据可导出'); return; }
+  const cols = ['id','knowledge_type','name','knowledge_key','knowledge_value','associate_tables','explanation_type','created_by','updated_by','created_at','updated_at'];
+  const header = cols.join(',');
+  const csvCell = v => {
+    if (v == null) return '';
+    const s = String(v).replace(/"/g, '""');
+    return /[,"\n\r]/.test(s) ? `"${s}"` : s;
+  };
+  const rows = allItems.map(item => cols.map(c => csvCell(item[c])).join(','));
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + header + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kb_${KB_ID}_knowledge.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function showDialog(msg, {type = 'alert', onConfirm = null} = {}) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('dialogOverlay');
+    document.getElementById('dialogMsg').textContent = msg;
+    const confirmBtn = document.getElementById('dialogConfirm');
+    const cancelBtn = document.getElementById('dialogCancel');
+    if (type === 'confirm') {
+      confirmBtn.textContent = '确定';
+      cancelBtn.style.display = '';
+    } else {
+      confirmBtn.textContent = '好的';
+      cancelBtn.style.display = 'none';
+    }
+    overlay.classList.add('show');
+    const cleanup = (val) => { overlay.classList.remove('show'); resolve(val); };
+    confirmBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    overlay.onclick = (e) => { if (e.target === overlay) cleanup(false); };
+  });
 }
 
 loadTableComments().then(() => load());
 </script>
+
+<!-- 自定义对话框 -->
+<div class="modal-overlay" id="dialogOverlay" style="z-index:200">
+  <div class="modal" style="width:400px;max-width:92vw;text-align:center;padding:32px 28px 24px;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%)">
+    <div id="dialogMsg" style="font-size:0.92rem;color:var(--text);line-height:1.7;margin-bottom:24px;white-space:pre-wrap"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn-ghost" id="dialogCancel">取消</button>
+      <button class="btn-primary" id="dialogConfirm">好的</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
