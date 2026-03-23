@@ -266,39 +266,57 @@ def update_knowledge_item(target: str, item_id: int, data: dict) -> dict:
 # ==================== 可选关联表 ====================
 
 # 常量来自 migrate_nl2sql.py
-_NEW_DB_NAME = "jst_flat_table_clone_moi_core"
-_NEW_DATABASE_ID = 5
+_NEW_DB_NAME = "jst_flat_table"
+_NEW_DATABASE_ID = 1
 _NEW_CATALOG_ID = 10001
 _TABLE_ID_MAP = {
-    "revenue_cost": 13,
-    "bpc_consolidated_report": 1,
-    "sales_orders_result": 14,
-    "open_orders_result": 9,
-    "output_value_lg": 11,
-    "output_amount_lg": 10,
-    "output_value_pc": 12,
-    "staff_info": 16,
-    "sales_vat_invoice": 15,
-    "tax_ledger": 17,
-    "main_companies": 8,
-    "main_business_unit": 7,
-    "logistics": 5,
-    "capacity": 2,
-    "electricity_bill_summary": 3,
-    "inventory_pc": 4,
+    "revenue_cost": 40169,
+    "bpc_consolidated_report": 40148,
+    "sales_orders_result": 40170,
+    "open_orders_result": 40162,
+    "output_value_lg": 40164,
+    "output_amount_lg": 40163,
+    "output_value_pc": 40165,
+    "staff_info": 40172,
+    "sales_vat_invoice": 40171,
+    "tax_ledger": 40173,
+    "main_companies": 40160,
+    "main_business_unit": 40159,
+    "logistics": 40157,
+    "capacity": 40150,
+    "electricity_bill_summary": 40152,
+    "inventory_pc": 40155,
+    "inventory_aging_pc": 40154,
 }
 
 
-def get_available_tables(target: str) -> dict:
-    """获取 jst_flat_table_clone_moi_core 中的可选表列表（含描述）"""
+def get_available_databases(target: str) -> dict:
+    """获取所有可用数据库列表（排除系统库）"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SHOW DATABASES")
+            rows = cur.fetchall()
+        system_dbs = {'information_schema', 'mysql', 'system', 'system_metrics', 'mo_catalog'}
+        dbs = sorted([r[0] for r in rows if r[0] not in system_dbs])
+        return {"ok": True, "databases": dbs}
+    finally:
+        conn.close()
+
+
+def get_available_tables(target: str, db_name: str = None) -> dict:
+    """获取指定数据库中的可选表列表（含描述）"""
+    if not db_name:
+        db_name = _NEW_DB_NAME
     conn = _get_conn(target)
     try:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT TABLE_NAME, TABLE_COMMENT "
                 "FROM information_schema.tables "
-                "WHERE TABLE_SCHEMA = 'jst_flat_table_clone_moi_core' "
-                "ORDER BY TABLE_NAME"
+                "WHERE TABLE_SCHEMA = %s "
+                "ORDER BY TABLE_NAME",
+                (db_name,)
             )
             rows = cur.fetchall()
 
@@ -306,15 +324,15 @@ def get_available_tables(target: str) -> dict:
         for name, comment in rows:
             tables.append({
                 "name": name,
-                "table_id": _TABLE_ID_MAP.get(name),
+                "table_id": _TABLE_ID_MAP.get(name) if db_name == _NEW_DB_NAME else None,
                 "comment": comment or "",
             })
 
         return {
             "ok": True,
-            "db_name": _NEW_DB_NAME,
-            "database_id": _NEW_DATABASE_ID,
-            "catalog_id": _NEW_CATALOG_ID,
+            "db_name": db_name,
+            "database_id": _NEW_DATABASE_ID if db_name == _NEW_DB_NAME else None,
+            "catalog_id": _NEW_CATALOG_ID if db_name == _NEW_DB_NAME else None,
             "tables": tables,
         }
     finally:

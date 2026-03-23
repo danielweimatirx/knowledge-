@@ -199,7 +199,24 @@
       <textarea id="kbUsageNotes" placeholder="描述这个知识库的用途…"></textarea>
     </div>
     <div class="field">
+      <label>关联数据库</label>
+      <div class="db-select" id="kbDbSelectWrap">
+        <div class="dbs-trigger" id="dbsTrigger" onclick="toggleDbDropdown()">
+          <span class="dbs-text" id="dbsDisplay">加载中…</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="dbs-dropdown" id="dbsDropdown">
+          <div class="dbs-search-wrap">
+            <input type="text" class="dbs-search" id="dbsSearch" placeholder="搜索数据库…" oninput="filterDbOptions()">
+          </div>
+          <div class="dbs-options" id="dbsOptions"></div>
+        </div>
+      </div>
+      <input type="hidden" id="kbDbSelect" value="">
+    </div>
+    <div class="field">
       <label>关联表</label>
+      <div id="kbDbInfo" style="font-size:0.75rem;color:var(--clay);background:var(--clay-light);display:none;padding:2px 10px;border-radius:10px;margin-bottom:8px;font-family:var(--font-mono)"></div>
       <div class="multi-select" id="kbTableSelect">
         <div class="ms-trigger" onclick="toggleTableDropdown()">
           <span class="ms-placeholder" id="kbTablesDisplay">点击选择关联表…</span>
@@ -327,6 +344,7 @@
   .badge-sm { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 600; }
   .badge-green { background: var(--green-light); color: var(--green); }
   .badge-warm { background: var(--warm-light); color: var(--warm); }
+  .badge-db { background: var(--clay-light); color: var(--clay); font-family: var(--font-mono); letter-spacing: -0.02em; }
   .table-tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
   .table-tag { background: var(--accent-glow); color: var(--accent); padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-family: var(--font-mono); }
 
@@ -478,6 +496,45 @@
   }
   .ms-tag-remove { cursor: pointer; font-size: 0.8rem; line-height: 1; opacity: 0.6; transition: opacity 0.15s; }
   .ms-tag-remove:hover { opacity: 1; }
+
+  /* Custom DB select dropdown */
+  .db-select { position: relative; }
+  .dbs-trigger {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); cursor: pointer; transition: border-color 0.2s;
+    font-size: 0.88rem; min-height: 42px; user-select: none;
+  }
+  .dbs-trigger:hover { border-color: var(--accent); }
+  .dbs-trigger.open { border-color: var(--accent); border-radius: var(--radius-xs) var(--radius-xs) 0 0; }
+  .dbs-text { font-family: var(--font-mono); font-size: 0.84rem; }
+  .dbs-text.placeholder { color: var(--muted); font-family: var(--font-body); }
+  .dbs-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--card); border: 1px solid var(--accent);
+    border-top: none; border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+    box-shadow: 0 12px 32px rgba(61,52,40,0.12);
+    z-index: 60; flex-direction: column;
+  }
+  .dbs-dropdown.open { display: flex; }
+  .dbs-search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border-light); }
+  .dbs-search {
+    width: 100%; font-family: var(--font-body); font-size: 0.82rem;
+    padding: 7px 10px; border-radius: var(--radius-xs);
+    border: 1px solid var(--border-light); background: var(--bg);
+    color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .dbs-search:focus { border-color: var(--accent); }
+  .dbs-options { overflow-y: auto; max-height: 260px; padding: 4px 0; }
+  .dbs-options::-webkit-scrollbar { width: 5px; }
+  .dbs-options::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .dbs-option {
+    padding: 8px 14px; cursor: pointer; transition: background 0.12s;
+    font-size: 0.84rem; font-family: var(--font-mono); color: var(--text);
+  }
+  .dbs-option:hover { background: var(--accent-glow); }
+  .dbs-option.selected { background: var(--green-light); color: var(--green); font-weight: 500; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -709,7 +766,9 @@ function renderKbGrid(data) {
   let html = '<div class="kb-grid">';
   data.forEach(kb => {
     let tableNames = [];
-    try { JSON.parse(kb.tables_json || '[]').forEach(t => tableNames.push(...(t.table_names || []))); } catch(e) {}
+    let dbNames = [];
+    try { JSON.parse(kb.tables_json || '[]').forEach(t => { tableNames.push(...(t.table_names || [])); if (t.db_name) dbNames.push(t.db_name); }); } catch(e) {}
+    dbNames = [...new Set(dbNames)];
     html += `
       <div class="kb-card">
         <div onclick="location.href='/kb/${kb.id}?target=${target}'" style="flex:1">
@@ -718,6 +777,7 @@ function renderKbGrid(data) {
           <div class="card-meta">
             <span class="badge-sm badge-green">${kb.knowledge_count} 条知识</span>
             <span class="badge-sm badge-warm">${tableNames.length} 张表</span>
+            ${dbNames.length ? dbNames.map(d => `<span class="badge-sm badge-db">${escHtml(d)}</span>`).join('') : ''}
             <span>${escHtml(kb.created_by || '-')}</span>
           </div>
           ${tableNames.length ? `<div class="table-tags">${tableNames.map(n => `<span class="table-tag">${escHtml(tableLabel(n))}</span>`).join('')}</div>` : ''}
@@ -759,21 +819,102 @@ async function loadKbList() {
 
 // ==================== 表选择（多选下拉） ====================
 let availableTables = [];
+let availableDatabases = [];
 let tablesMetadata = {};
 let tableDropdownOpen = false;
 
-async function loadAvailableTables() {
+let dbDropdownOpen = false;
+let selectedDbName = '';
+
+async function loadDatabases() {
   const target = document.getElementById('selTarget').value;
+  document.getElementById('dbsDisplay').textContent = '加载中…';
+  document.getElementById('dbsDisplay').className = 'dbs-text placeholder';
+  try {
+    const res = await fetch(`/api/databases?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { document.getElementById('dbsDisplay').textContent = '加载失败'; return; }
+    availableDatabases = d.databases;
+    renderDbOptions();
+    // 默认选 jst_flat_table（如果存在）
+    if (d.databases.includes('jst_flat_table')) {
+      selectDb('jst_flat_table');
+    } else if (d.databases.length) {
+      selectDb(d.databases[0]);
+    }
+  } catch(e) { document.getElementById('dbsDisplay').textContent = '加载失败'; }
+}
+
+function renderDbOptions(filter) {
+  const container = document.getElementById('dbsOptions');
+  const q = (filter || '').toLowerCase();
+  container.innerHTML = availableDatabases
+    .filter(db => !q || db.toLowerCase().includes(q))
+    .map(db => `<div class="dbs-option${db === selectedDbName ? ' selected' : ''}" onclick="selectDb('${escHtml(db)}')">${escHtml(db)}</div>`)
+    .join('');
+}
+
+function selectDb(name) {
+  selectedDbName = name;
+  document.getElementById('kbDbSelect').value = name;
+  document.getElementById('dbsDisplay').textContent = name;
+  document.getElementById('dbsDisplay').className = 'dbs-text';
+  // Update selected state
+  document.querySelectorAll('.dbs-option').forEach(opt => {
+    opt.classList.toggle('selected', opt.textContent === name);
+  });
+  closeDbDropdown();
+  onDbChange();
+}
+
+function toggleDbDropdown() {
+  dbDropdownOpen = !dbDropdownOpen;
+  document.getElementById('dbsDropdown').classList.toggle('open', dbDropdownOpen);
+  document.getElementById('dbsTrigger').classList.toggle('open', dbDropdownOpen);
+  if (dbDropdownOpen) {
+    document.getElementById('dbsSearch').value = '';
+    renderDbOptions();
+    setTimeout(() => document.getElementById('dbsSearch').focus(), 50);
+  }
+}
+
+function closeDbDropdown() {
+  dbDropdownOpen = false;
+  document.getElementById('dbsDropdown').classList.remove('open');
+  document.getElementById('dbsTrigger').classList.remove('open');
+}
+
+document.addEventListener('click', function(e) {
+  if (dbDropdownOpen && !e.target.closest('.db-select')) closeDbDropdown();
+});
+
+function filterDbOptions() {
+  const q = document.getElementById('dbsSearch').value;
+  renderDbOptions(q);
+}
+
+async function onDbChange() {
+  const dbName = document.getElementById('kbDbSelect').value;
+  if (!dbName) return;
+  await loadAvailableTables(dbName);
+}
+
+async function loadAvailableTables(dbName) {
+  const target = document.getElementById('selTarget').value;
+  if (!dbName) dbName = document.getElementById('kbDbSelect').value;
   const loading = document.getElementById('kbTablesLoading');
   loading.style.display = 'block';
+  loading.textContent = '加载表列表…';
   document.getElementById('kbTableSelect').style.display = 'none';
   try {
-    const res = await fetch(`/api/tables?target=${target}`);
+    const res = await fetch(`/api/tables?target=${target}&db=${encodeURIComponent(dbName)}`);
     const d = await res.json();
     if (!d.ok) { loading.textContent = '❌ ' + d.msg; return; }
     availableTables = d.tables;
     tablesMetadata = { db_name: d.db_name, database_id: d.database_id, catalog_id: d.catalog_id };
     renderTableOptions();
+    document.getElementById('kbDbInfo').textContent = d.db_name + ' · ' + d.tables.length + ' 张表';
+    document.getElementById('kbDbInfo').style.display = d.db_name ? 'inline-block' : 'none';
     loading.style.display = 'none';
     document.getElementById('kbTableSelect').style.display = 'block';
   } catch(e) { loading.textContent = '❌ ' + e.message; }
@@ -885,10 +1026,26 @@ async function openKbModal(kb) {
   document.getElementById('kbUsageNotes').value = kb ? (kb.usage_notes || '') : '';
   document.getElementById('kbFilesJson').value = kb ? (kb.files_json || '') : '';
   document.getElementById('kbModal').classList.add('show');
-  if (!availableTables.length) await loadAvailableTables();
+
+  // 加载数据库列表
+  if (!availableDatabases.length) await loadDatabases();
+
+  // 编辑时：从 tables_json 解析出 db_name，选中对应数据库再加载表
+  let editDbName = 'jst_flat_table';
+  let editTableNames = [];
   if (kb && kb.tables_json) {
-    try { const tables = JSON.parse(kb.tables_json); const names = []; tables.forEach(t => names.push(...(t.table_names || []))); setSelectedTableNames(names); } catch(e) { setSelectedTableNames([]); }
-  } else { setSelectedTableNames([]); }
+    try {
+      const tables = JSON.parse(kb.tables_json);
+      tables.forEach(t => { if (t.db_name) editDbName = t.db_name; editTableNames.push(...(t.table_names || [])); });
+    } catch(e) {}
+  }
+
+  if (availableDatabases.includes(editDbName)) selectDb(editDbName);
+  else selectDb(editDbName);
+  await loadAvailableTables(editDbName);
+
+  if (editTableNames.length) setSelectedTableNames(editTableNames);
+  else setSelectedTableNames([]);
 }
 function closeKbModal() { document.getElementById('kbModal').classList.remove('show'); }
 

@@ -45,33 +45,34 @@ NEW_LOCAL = dict(
 
 # ==================== 表 ID 映射 ====================
 
-# 新工作区 catalog: db_name=jst_flat_table_clone_moi_core, database_id=5, catalog_id=10001
-NEW_DB_NAME = "jst_flat_table_clone_moi_core"
-NEW_DATABASE_ID = 5
+# 新工作区 catalog: db_name=jst_flat_table, database_id=1, catalog_id=10001
+NEW_DB_NAME = "jst_flat_table"
+NEW_DATABASE_ID = 1
 NEW_CATALOG_ID = 10001
 
 # 表名 → 新 catalog table_id
 TABLE_ID_MAP = {
-    "revenue_cost": 13,
-    "bpc_consolidated_report": 1,
-    "sales_orders_result": 14,
-    "open_orders_result": 9,
-    "output_value_lg": 11,
-    "output_amount_lg": 10,
-    "output_value_pc": 12,
-    "staff_info": 16,
-    "sales_vat_invoice": 15,
-    "tax_ledger": 17,
-    "main_companies": 8,
-    "main_business_unit": 7,
-    "logistics": 5,
-    "capacity": 2,
-    "electricity_bill_summary": 3,
-    "inventory_pc": 4,
+    "revenue_cost": 40169,
+    "bpc_consolidated_report": 40148,
+    "sales_orders_result": 40170,
+    "open_orders_result": 40162,
+    "output_value_lg": 40164,
+    "output_amount_lg": 40163,
+    "output_value_pc": 40165,
+    "staff_info": 40172,
+    "sales_vat_invoice": 40171,
+    "tax_ledger": 40173,
+    "main_companies": 40160,
+    "main_business_unit": 40159,
+    "logistics": 40157,
+    "capacity": 40150,
+    "electricity_bill_summary": 40152,
+    "inventory_pc": 40155,
+    "inventory_aging_pc": 40154,
 }
 
-# 跳过的旧 knowledge_base id（inventory_aging_pc 不在新 catalog 中）
-SKIP_KB_IDS = {50001}
+# 跳过的旧 knowledge_base id — 不再需要跳过，jst_flat_table 包含 inventory_aging_pc
+SKIP_KB_IDS = set()
 
 # ==================== DDL ====================
 

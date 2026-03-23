@@ -40,12 +40,16 @@
 
   /* Top bar */
   .top-bar {
-    display: flex; align-items: center; gap: 16px;
-    margin-bottom: 28px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 28px;
     animation: fadeUp 0.5s ease-out;
   }
+  .back-link {
+    font-size: 0.85rem; color: var(--muted); font-weight: 500;
+    text-decoration: none; transition: color 0.2s; flex-shrink: 0;
+  }
+  .back-link:hover { color: var(--accent); text-decoration: none; }
   .top-bar h1 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 400; color: var(--text); }
-  .top-bar .nav { font-size: 0.85rem; margin-left: auto; display: flex; gap: 16px; }
 
   /* KB info card */
   .kb-info {
@@ -70,6 +74,12 @@
   .tables-section h3 {
     font-family: var(--font-display); font-size: 0.9rem; font-weight: 400;
     color: var(--text); margin-bottom: 10px;
+  }
+  .db-label {
+    font-family: var(--font-mono); font-size: 0.72rem; font-weight: 400;
+    color: var(--clay); background: var(--clay-light);
+    padding: 2px 10px; border-radius: 10px; margin-left: 10px;
+    vertical-align: middle;
   }
   .table-chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .table-chip {
@@ -219,11 +229,8 @@
 <div class="container">
 
 <div class="top-bar">
+  <a href="javascript:history.back()" class="back-link">← 返回列表</a>
   <h1 id="pageTitle">知识库详情</h1>
-  <div class="nav">
-    <a href="javascript:history.back()">← 返回列表</a>
-    <a href="/">控制台</a>
-  </div>
 </div>
 
 <div id="kbInfo"></div>
@@ -314,7 +321,9 @@ function renderKbInfo(kb) {
   document.getElementById('pageTitle').textContent = kb.name;
   document.title = kb.name + ' - NL2SQL';
   let tableNames = [];
-  try { JSON.parse(kb.tables_json || '[]').forEach(t => tableNames.push(...(t.table_names || []))); } catch(e) {}
+  let dbNames = [];
+  try { JSON.parse(kb.tables_json || '[]').forEach(t => { tableNames.push(...(t.table_names || [])); if (t.db_name) dbNames.push(t.db_name); }); } catch(e) {}
+  dbNames = [...new Set(dbNames)];
 
   document.getElementById('kbInfo').innerHTML = `
     <div class="kb-info">
@@ -328,7 +337,7 @@ function renderKbInfo(kb) {
       </div>
       ${tableNames.length ? `
         <div class="tables-section">
-          <h3>关联表 (${tableNames.length})</h3>
+          <h3>关联表 (${tableNames.length})${dbNames.length ? `<span class="db-label">${dbNames.map(d => esc(d)).join(', ')}</span>` : ''}</h3>
           <div class="table-chips">${tableNames.map(n => `<span class="table-chip">${esc(tableLabel(n))}</span>`).join('')}</div>
         </div>` : ''}
     </div>`;

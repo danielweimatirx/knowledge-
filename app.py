@@ -199,8 +199,20 @@ def api_item_delete(item_id):
 @app.route("/api/tables")
 def api_tables():
     target = request.args.get("target", "remote")
+    db_name = request.args.get("db", None)
     try:
-        return jsonify(db_service.get_available_tables(target))
+        return jsonify(db_service.get_available_tables(target, db_name))
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
+
+
+@app.route("/api/databases")
+def api_databases():
+    target = request.args.get("target", "remote")
+    try:
+        return jsonify(db_service.get_available_databases(target))
     except ValueError as e:
         return jsonify({"ok": False, "msg": str(e)}), 400
     except Exception as e:
