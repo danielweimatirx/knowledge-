@@ -22,6 +22,13 @@ DB_CONFIGS = {
         password="moi_2d76c2c1a5eb95b160e10e0b1dc47109ded45fbc9ad7641d3adcbd07ce09da78",
         database="moi", charset="utf8mb4",
     ),
+    "portal": dict(
+        host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
+        port=6001,
+        user="ws_bfb9ca8d:qa_manual_20260330185108_x9f3k2:accountadmin",
+        password="moi_216a042120beaf5cdf357dfbc7a335a29c4b5d6641feeb598da2f3ccd824d342",
+        database="moi", charset="utf8mb4", autocommit=True,
+    ),
 }
 
 
@@ -395,3 +402,157 @@ def delete_knowledge_base(target: str, kb_id: int) -> dict:
         return {"ok": True}
     finally:
         conn.close()
+
+
+# ==================== 跨工作区迁移 ====================
+
+WORKSPACE_LABELS = {
+    "local": "Local (Docker)",
+    "remote": "问数Dev",
+    "portal": "AI Portal",
+}
+
+WORKSPACE_INFO = {
+    "local": {"account": "dump", "host": "127.0.0.1:16001", "database": "moi", "workspace_id": "-", "workspace_name": "local-docker"},
+    "remote": {"account": "ws_bf2d347f", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "ws_bf2d347f", "workspace_name": "moi_core_system"},
+    "portal": {"account": "ws_bfb9ca8d", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "6a0d513b-9b28-5c5c-0e5f-145427bde36c", "workspace_name": "qa-manual-ws-20260330185108-x9f3k2"},
+}
+
+
+def migrate_knowledge_bases(source: str, target: str, kb_ids: list = None, dry_run: bool = False) -> dict:
+    """
+    跨工作区迁移知识库及其知识条目。
+    dry_run=True 时只读取源库统计数量，不写入目标库。
+    """
+    src_conn = _get_conn(source)
+    try:
+        # 1. 读取源库知识库
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            if kb_ids:
+                placeholders = ",".join(["%s"] * len(kb_ids))
+                cur.execute(
+                    f"SELECT id, name, usage_notes, "
+                    f"CAST(`tables` AS CHAR) AS tables_json, "
+                    f"CAST(files AS CHAR) AS files_json, "
+                    f"created_by, updated_by, created_at, updated_at "
+                    f"FROM moi.knowledge_base WHERE id IN ({placeholders}) ORDER BY id",
+                    kb_ids,
+                )
+            else:
+                cur.execute(
+                    "SELECT id, name, usage_notes, "
+                    "CAST(`tables` AS CHAR) AS tables_json, "
+                    "CAST(files AS CHAR) AS files_json, "
+                    "created_by, updated_by, created_at, updated_at "
+                    "FROM moi.knowledge_base ORDER BY id"
+                )
+            kb_rows = cur.fetchall()
+
+        if not kb_rows:
+            return {"ok": True, "msg": "没有需要迁移的知识库", "kb_count": 0, "nk_count": 0}
+
+        # 2. 读取源库知识条目
+        actual_kb_ids = [kb["id"] for kb in kb_rows]
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            placeholders = ",".join(["%s"] * len(actual_kb_ids))
+            cur.execute(
+                f"SELECT id, knowledge_base_id, knowledge_type, knowledge_key, "
+                f"name, CAST(knowledge_value AS CHAR) AS knowledge_value, "
+                f"CAST(associate_tables AS CHAR) AS associate_tables, "
+                f"explanation_type, created_by, updated_by, created_at, updated_at "
+                f"FROM moi.nl2sql_knowledge WHERE knowledge_base_id IN ({placeholders}) ORDER BY id",
+                actual_kb_ids,
+            )
+            nk_rows = cur.fetchall()
+
+        # 空跑模式：返回详细预览
+        if dry_run:
+            kb_details = []
+            for kb in kb_rows:
+                nk_cnt = sum(1 for nk in nk_rows if nk["knowledge_base_id"] == kb["id"])
+                kb_details.append({
+                    "id": kb["id"],
+                    "name": kb["name"],
+                    "nk_count": nk_cnt,
+                })
+            return {
+                "ok": True,
+                "dry_run": True,
+                "source": source,
+                "source_label": WORKSPACE_LABELS.get(source, source),
+                "source_info": WORKSPACE_INFO.get(source, {}),
+                "target": target,
+                "target_label": WORKSPACE_LABELS.get(target, target),
+                "target_info": WORKSPACE_INFO.get(target, {}),
+                "kb_count": len(kb_rows),
+                "nk_count": len(nk_rows),
+                "kb_details": kb_details,
+                "nk_errors": [],
+            }
+
+        # 3. 写入目标库
+        dst_conn = _get_conn(target)
+        try:
+            kb_id_map = {}
+            for kb in kb_rows:
+                with dst_conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO moi.knowledge_base "
+                        "(name, usage_notes, `tables`, files, created_by, updated_by, created_at, updated_at) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                        (
+                            kb["name"],
+                            kb.get("usage_notes"),
+                            kb["tables_json"],
+                            kb["files_json"],
+                            kb.get("created_by") or "admin",
+                            kb.get("updated_by") or "admin",
+                            kb["created_at"],
+                            kb["updated_at"],
+                        ),
+                    )
+                    kb_id_map[kb["id"]] = cur.lastrowid
+
+            nk_success = 0
+            nk_errors = []
+            for nk in nk_rows:
+                old_kb_id = nk["knowledge_base_id"]
+                if old_kb_id not in kb_id_map:
+                    continue
+                try:
+                    with dst_conn.cursor() as cur:
+                        cur.execute(
+                            "INSERT INTO moi.nl2sql_knowledge "
+                            "(knowledge_base_id, knowledge_type, knowledge_key, name, "
+                            "knowledge_value, associate_tables, explanation_type, "
+                            "created_by, updated_by, created_at, updated_at) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                            (
+                                kb_id_map[old_kb_id],
+                                nk["knowledge_type"],
+                                nk["knowledge_key"],
+                                nk.get("name"),
+                                nk["knowledge_value"],
+                                nk["associate_tables"],
+                                nk.get("explanation_type"),
+                                nk.get("created_by") or "admin",
+                                nk.get("updated_by") or "admin",
+                                nk["created_at"],
+                                nk["updated_at"],
+                            ),
+                        )
+                        nk_success += 1
+                except Exception as e:
+                    nk_errors.append({"id": nk["id"], "error": str(e)})
+
+            return {
+                "ok": True,
+                "kb_count": len(kb_id_map),
+                "nk_count": nk_success,
+                "nk_errors": nk_errors,
+                "kb_id_map": {str(k): v for k, v in kb_id_map.items()},
+            }
+        finally:
+            dst_conn.close()
+    finally:
+        src_conn.close()

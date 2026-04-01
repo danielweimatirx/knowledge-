@@ -111,9 +111,10 @@
   <div class="header-inner">
     <h1>NL2SQL <span>知识库</span></h1>
     <div class="header-right">
-      <label>目标库</label>
+      <label>工作区</label>
       <select id="selTarget">
-        <option value="remote">Remote (新工作区)</option>
+        <option value="remote">问数Dev</option>
+        <option value="portal">AI Portal</option>
         <option value="local">Local (Docker)</option>
       </select>
     </div>
@@ -148,6 +149,7 @@
     <div class="fs-tags" id="filterTags"></div>
     <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
       <button class="btn-warm" onclick="openKbModal()">+ 新增知识库</button>
+      <button class="btn-ghost" onclick="exportAllCsv()">导出 CSV</button>
       <button class="btn-ghost" onclick="loadKbList()">刷新</button>
     </div>
     <span id="kbMsg" class="meta" style="width:100%"></span>
@@ -172,16 +174,50 @@
 
 <!-- ==================== Tab 3: 迁移工具 ==================== -->
 <div class="tab-content" id="tab-migrate">
-  <div class="migrate-panel">
-    <div class="migrate-controls">
-      <label class="checkbox-wrap">
-        <input type="checkbox" id="chkDry"> Dry Run（空跑）
+  <!-- 跨工作区迁移 -->
+  <div class="migrate-panel" style="margin-bottom:20px">
+    <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">跨工作区迁移</h3>
+    <div class="migrate-controls" style="margin-bottom:12px">
+      <div class="db-select" id="migSrcWrap" style="min-width:180px">
+        <div class="dbs-trigger" id="migSrcTrigger" onclick="toggleMigDropdown('src')">
+          <span class="dbs-text" id="migSrcDisplay">问数Dev</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="dbs-dropdown" id="migSrcDropdown">
+          <div class="dbs-options" id="migSrcOptions"></div>
+        </div>
+      </div>
+      <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">→</span>
+      <div class="db-select" id="migDstWrap" style="min-width:180px">
+        <div class="dbs-trigger" id="migDstTrigger" onclick="toggleMigDropdown('dst')">
+          <span class="dbs-text" id="migDstDisplay">AI Portal</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="dbs-dropdown" id="migDstDropdown">
+          <div class="dbs-options" id="migDstOptions"></div>
+        </div>
+      </div>
+      <button class="btn-primary" id="btnMigrateKb" onclick="runKbMigration()">执行迁移</button>
+      <label class="checkbox-wrap" style="margin-left:4px">
+        <input type="checkbox" id="chkMigDry"> Dry Run（空跑）
       </label>
-      <button class="btn-primary" id="btnRun" onclick="runMigration()">执行迁移</button>
-      <span id="statusBadge" class="badge badge-idle">IDLE</span>
-      <span id="timeMeta" class="meta"></span>
+      <span id="migrateMsg" class="meta"></span>
     </div>
-    <div id="logBox" class="log-box" style="display:none"></div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:0.72rem;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:6px">选择知识库（不选则迁移全部）</label>
+      <div id="migKbList" style="display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow-y:auto;padding:4px 0">
+        <span class="meta">点击「加载」获取知识库列表</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="loadMigKbList()">加载列表</button>
+        <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="migSelectAll(true)">全选</button>
+        <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="migSelectAll(false)">全不选</button>
+        <span id="migKbCount" class="meta" style="align-self:center"></span>
+      </div>
+    </div>
+    <div id="migrateResult" style="display:none"></div>
+  </div>
+
   </div>
 </div>
 
@@ -550,57 +586,6 @@ function switchMainTab(tab, btn) {
   btn.classList.add('active');
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-}
-
-// ==================== 迁移 ====================
-let pollTimer = null;
-let logOffset = 0;
-
-async function runMigration() {
-  const target = document.getElementById('selTarget').value;
-  const dryRun = document.getElementById('chkDry').checked;
-  const btn = document.getElementById('btnRun');
-  btn.disabled = true;
-  const res = await fetch('/api/run', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target, dry_run: dryRun }),
-  });
-  const data = await res.json();
-  if (!data.ok) { showDialog(data.msg); btn.disabled = false; return; }
-  logOffset = 0;
-  document.getElementById('logBox').style.display = 'block';
-  document.getElementById('logBox').innerHTML = '';
-  updateBadge('running');
-  pollTimer = setInterval(pollStatus, 800);
-}
-
-async function pollStatus() {
-  const res = await fetch(`/api/status?since=${logOffset}`);
-  const d = await res.json();
-  const box = document.getElementById('logBox');
-  d.logs.forEach(line => {
-    const span = document.createElement('span');
-    span.textContent = line + '\n';
-    if (line.includes('[WARN]')) span.className = 'warn';
-    else if (line.includes('[OK]')) span.className = 'ok';
-    else if (line.includes('[FAIL]') || line.includes('Error')) span.className = 'fail';
-    else if (line.includes('[SKIP]') || line.includes('[DRY]')) span.className = 'skip';
-    box.appendChild(span);
-  });
-  logOffset = d.total_lines;
-  box.scrollTop = box.scrollHeight;
-  let meta = '';
-  if (d.started_at) meta += '开始: ' + d.started_at;
-  if (d.finished_at) meta += '  完成: ' + d.finished_at;
-  document.getElementById('timeMeta').textContent = meta;
-  updateBadge(d.status);
-  if (d.status !== 'running') { clearInterval(pollTimer); document.getElementById('btnRun').disabled = false; }
-}
-
-function updateBadge(status) {
-  const el = document.getElementById('statusBadge');
-  el.className = 'badge badge-' + status;
-  el.textContent = { idle: 'IDLE', running: 'RUNNING…', success: 'SUCCESS', error: 'ERROR' }[status] || status;
 }
 
 // ==================== 数据查看 ====================
@@ -1085,6 +1070,237 @@ async function saveKb() {
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ==================== 跨工作区迁移 ====================
+const MIG_WORKSPACES = [
+  { key: 'remote', label: '问数Dev' },
+  { key: 'portal', label: 'AI Portal' },
+  { key: 'local', label: 'Local (Docker)' },
+];
+let migSrc = 'remote', migDst = 'portal';
+let migSrcOpen = false, migDstOpen = false;
+let migKbData = [];
+let migSelectedKbIds = new Set();
+
+function renderMigOptions(which) {
+  const container = document.getElementById(which === 'src' ? 'migSrcOptions' : 'migDstOptions');
+  const current = which === 'src' ? migSrc : migDst;
+  container.innerHTML = MIG_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === current ? ' selected' : ''}" onclick="selectMigWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleMigDropdown(which) {
+  if (which === 'src') {
+    migSrcOpen = !migSrcOpen;
+    document.getElementById('migSrcDropdown').classList.toggle('open', migSrcOpen);
+    document.getElementById('migSrcTrigger').classList.toggle('open', migSrcOpen);
+    if (migSrcOpen) renderMigOptions('src');
+  } else {
+    migDstOpen = !migDstOpen;
+    document.getElementById('migDstDropdown').classList.toggle('open', migDstOpen);
+    document.getElementById('migDstTrigger').classList.toggle('open', migDstOpen);
+    if (migDstOpen) renderMigOptions('dst');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (migSrcOpen && !e.target.closest('#migSrcWrap')) {
+    migSrcOpen = false;
+    document.getElementById('migSrcDropdown').classList.remove('open');
+    document.getElementById('migSrcTrigger').classList.remove('open');
+  }
+  if (migDstOpen && !e.target.closest('#migDstWrap')) {
+    migDstOpen = false;
+    document.getElementById('migDstDropdown').classList.remove('open');
+    document.getElementById('migDstTrigger').classList.remove('open');
+  }
+});
+
+function selectMigWs(which, key) {
+  const label = MIG_WORKSPACES.find(w => w.key === key).label;
+  if (which === 'src') {
+    migSrc = key;
+    document.getElementById('migSrcDisplay').textContent = label;
+    migSrcOpen = false;
+    document.getElementById('migSrcDropdown').classList.remove('open');
+    document.getElementById('migSrcTrigger').classList.remove('open');
+    // 清空已加载的列表
+    migKbData = [];
+    migSelectedKbIds.clear();
+    document.getElementById('migKbList').innerHTML = '<span class="meta">源已切换，请重新加载列表</span>';
+    document.getElementById('migKbCount').textContent = '';
+  } else {
+    migDst = key;
+    document.getElementById('migDstDisplay').textContent = label;
+    migDstOpen = false;
+    document.getElementById('migDstDropdown').classList.remove('open');
+    document.getElementById('migDstTrigger').classList.remove('open');
+  }
+}
+
+async function loadMigKbList() {
+  const list = document.getElementById('migKbList');
+  list.innerHTML = '<span class="meta">加载中…</span>';
+  try {
+    const res = await fetch(`/api/kb?target=${migSrc}`);
+    const d = await res.json();
+    if (!d.ok) { list.innerHTML = `<span class="meta">❌ ${d.msg}</span>`; return; }
+    migKbData = d.data;
+    migSelectedKbIds.clear();
+    renderMigKbList();
+  } catch(e) { list.innerHTML = `<span class="meta">❌ ${e.message}</span>`; }
+}
+
+function renderMigKbList() {
+  const list = document.getElementById('migKbList');
+  if (!migKbData.length) { list.innerHTML = '<span class="meta">该工作区暂无知识库</span>'; return; }
+  list.innerHTML = migKbData.map(kb => {
+    const checked = migSelectedKbIds.has(kb.id);
+    return `<label style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1px solid ${checked ? 'var(--accent)' : 'var(--border)'};background:${checked ? 'var(--accent-glow)' : 'var(--bg)'};cursor:pointer;font-size:0.78rem;transition:all 0.15s;user-select:none">
+      <input type="checkbox" value="${kb.id}" ${checked ? 'checked' : ''} onchange="toggleMigKb(${kb.id})" style="width:13px;height:13px;accent-color:var(--accent);cursor:pointer">
+      <span style="color:${checked ? 'var(--accent)' : 'var(--text)'}">${escHtml(kb.name)}</span>
+      <span style="font-size:0.65rem;color:var(--muted)">#${kb.id} · ${kb.knowledge_count}条</span>
+    </label>`;
+  }).join('');
+  updateMigCount();
+}
+
+function toggleMigKb(id) {
+  if (migSelectedKbIds.has(id)) migSelectedKbIds.delete(id);
+  else migSelectedKbIds.add(id);
+  renderMigKbList();
+}
+
+function migSelectAll(checked) {
+  if (checked) migKbData.forEach(kb => migSelectedKbIds.add(kb.id));
+  else migSelectedKbIds.clear();
+  renderMigKbList();
+}
+
+function updateMigCount() {
+  const cnt = migSelectedKbIds.size;
+  document.getElementById('migKbCount').textContent = cnt ? `已选 ${cnt} 个知识库` : `共 ${migKbData.length} 个知识库`;
+}
+
+async function runKbMigration() {
+  if (migSrc === migDst) { showDialog('源和目标不能相同'); return; }
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === migSrc).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === migDst).label;
+  const kbIds = migSelectedKbIds.size ? [...migSelectedKbIds] : null;
+  const countText = kbIds ? `${kbIds.length} 个知识库` : '全部知识库';
+  const dryRun = document.getElementById('chkMigDry').checked;
+  const modeText = dryRun ? '（空跑模式）' : '';
+
+  if (!await showDialog(`${modeText}确定将 ${countText} 从「${srcLabel}」迁移到「${dstLabel}」？`, {type:'confirm'})) return;
+
+  const btn = document.getElementById('btnMigrateKb');
+  const msg = document.getElementById('migrateMsg');
+  const resultDiv = document.getElementById('migrateResult');
+  btn.disabled = true;
+  msg.textContent = dryRun ? '空跑检查中…' : '迁移中…';
+  resultDiv.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/migrate-kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: migSrc, target: migDst, kb_ids: kbIds, dry_run: dryRun }),
+    });
+    const d = await res.json();
+    if (!d.ok) { msg.textContent = ''; showDialog((dryRun ? '空跑失败: ' : '迁移失败: ') + d.msg); btn.disabled = false; return; }
+
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+    if (dryRun) {
+      let detailHtml = '';
+      if (d.kb_details && d.kb_details.length) {
+        detailHtml = '<div style="margin-top:10px;font-size:0.82rem;color:var(--text-secondary)">' +
+          d.kb_details.map(kb => `<div style="padding:3px 0">· ${escHtml(kb.name)} <span style="color:var(--muted)">#${kb.id}</span> — ${kb.nk_count} 条知识</div>`).join('') +
+          '</div>';
+      }
+      resultDiv.innerHTML = `
+        <div style="background:var(--warm-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem;color:var(--text)">
+          <div style="color:var(--warm);font-weight:500;margin-bottom:10px">🔍 空跑预览（未实际写入）</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:0.8rem;margin-bottom:10px;font-family:var(--font-mono)">
+            <span style="color:var(--muted)">源工作区</span>
+            <span><b style="color:var(--accent)">${escHtml(d.source_label)}</b></span>
+            <span style="color:var(--muted)">workspace_id</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).workspace_id||'')}</span>
+            <span style="color:var(--muted)">workspace_name</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).workspace_name||'')}</span>
+            <span style="color:var(--muted)">account / db</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).account||'')} / ${escHtml((d.source_info||{}).database||'')}</span>
+            <span style="color:var(--muted)">host</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).host||'')}</span>
+            <span style="color:var(--muted);padding-top:6px;border-top:1px solid var(--border-light)">目标工作区</span>
+            <span style="padding-top:6px;border-top:1px solid var(--border-light)"><b style="color:var(--clay)">${escHtml(d.target_label)}</b></span>
+            <span style="color:var(--muted)">workspace_id</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).workspace_id||'')}</span>
+            <span style="color:var(--muted)">workspace_name</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).workspace_name||'')}</span>
+            <span style="color:var(--muted)">account / db</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).account||'')} / ${escHtml((d.target_info||{}).database||'')}</span>
+            <span style="color:var(--muted)">host</span>
+            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).host||'')}</span>
+          </div>
+          <div>将迁移 <b>${d.kb_count}</b> 个知识库，共 <b>${d.nk_count}</b> 条知识条目</div>
+          ${detailHtml}
+        </div>`;
+    } else {
+      resultDiv.innerHTML = `
+        <div style="background:var(--green-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem;color:var(--green)">
+          ✅ 迁移完成：${d.kb_count} 个知识库，${d.nk_count} 条知识条目
+          ${d.nk_errors && d.nk_errors.length ? `<br><span style="color:var(--red)">⚠ ${d.nk_errors.length} 条写入失败</span>` : ''}
+        </div>`;
+    }
+  } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); }
+  btn.disabled = false;
+}
+
+// ===== 导出全部知识库 CSV =====
+async function exportAllCsv() {
+  const target = document.getElementById('selTarget').value;
+  try {
+    const res = await fetch(`/api/data?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { showDialog('导出失败: ' + d.msg); return; }
+    if (!d.knowledge_base.length) { showDialog('暂无数据可导出'); return; }
+
+    // 构建 kb name 映射
+    const kbMap = {};
+    d.knowledge_base.forEach(kb => { kbMap[kb.id] = kb; });
+
+    const cols = ['kb_id','kb_name','kb_usage_notes','kb_tables','nk_id','knowledge_type','name','knowledge_key','knowledge_value','associate_tables','explanation_type','created_by','updated_by','created_at','updated_at'];
+    const csvCell = v => {
+      if (v == null) return '';
+      const s = String(v).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ').replace(/"/g, '""');
+      return /[,"]/.test(s) ? `"${s}"` : s;
+    };
+
+    const rows = [];
+    // 对每个知识库，输出其下所有知识条目；无条目的知识库也输出一行
+    d.knowledge_base.forEach(kb => {
+      const items = d.nl2sql_knowledge.filter(nk => nk.knowledge_base_id === kb.id);
+      if (!items.length) {
+        rows.push([kb.id, kb.name, kb.usage_notes, kb.tables_json, '', '', '', '', '', '', '', kb.created_by, kb.updated_by, kb.created_at, kb.updated_at].map(csvCell).join(','));
+      } else {
+        items.forEach(nk => {
+          rows.push([kb.id, kb.name, kb.usage_notes, kb.tables_json, nk.id, nk.knowledge_type, nk.name, nk.knowledge_key, nk.knowledge_value, nk.associate_tables, nk.explanation_type, nk.created_by, nk.updated_by, nk.created_at, nk.updated_at].map(csvCell).join(','));
+        });
+      }
+    });
+
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + cols.join(',') + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nl2sql_knowledge_export_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { showDialog('导出失败: ' + e.message); }
+}
 
 // ===== 自定义对话框 =====
 function showDialog(msg, {type = 'alert', onConfirm = null} = {}) {
