@@ -219,6 +219,24 @@ def api_tables():
         return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
 
 
+@app.route("/api/migrate-kb", methods=["POST"])
+def api_migrate_kb():
+    body = request.get_json(force=True) or {}
+    source = body.get("source", "remote")
+    target = body.get("target", "portal")
+    kb_ids = body.get("kb_ids")  # list of int or None for all
+    dry_run = body.get("dry_run", False)
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        result = db_service.migrate_knowledge_bases(source, target, kb_ids, dry_run=dry_run)
+        return jsonify(result)
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"迁移失败: {e}"}), 500
+
+
 @app.route("/api/databases")
 def api_databases():
     target = request.args.get("target", "remote")
