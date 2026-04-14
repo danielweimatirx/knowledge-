@@ -219,6 +219,39 @@ def api_tables():
         return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
 
 
+@app.route("/api/compare-kb", methods=["POST"])
+def api_compare_kb():
+    body = request.get_json(force=True) or {}
+    ws_a = body.get("a", "remote")
+    ws_b = body.get("b", "portal")
+    if ws_a == ws_b:
+        return jsonify({"ok": False, "msg": "两个工作区不能相同"}), 400
+    try:
+        return jsonify(db_service.compare_knowledge_bases(ws_a, ws_b))
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"对比失败: {e}"}), 500
+
+
+@app.route("/api/sync-kb", methods=["POST"])
+def api_sync_kb():
+    body = request.get_json(force=True) or {}
+    source = body.get("source")
+    target = body.get("target")
+    kb_name = body.get("kb_name")
+    if not source or not target or not kb_name:
+        return jsonify({"ok": False, "msg": "source, target, kb_name 必填"}), 400
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.sync_knowledge_base(source, target, kb_name))
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"同步失败: {e}"}), 500
+
+
 @app.route("/api/migrate-kb", methods=["POST"])
 def api_migrate_kb():
     body = request.get_json(force=True) or {}

@@ -218,6 +218,35 @@
     <div id="migrateResult" style="display:none"></div>
   </div>
 
+  <!-- 知识库差异对比 -->
+  <div class="migrate-panel" style="margin-bottom:20px">
+    <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">知识库差异对比</h3>
+    <div class="migrate-controls" style="margin-bottom:12px">
+      <div class="db-select" id="diffAWrap" style="min-width:180px">
+        <div class="dbs-trigger" id="diffATrigger" onclick="toggleDiffDropdown('a')">
+          <span class="dbs-text" id="diffADisplay">问数Dev</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="dbs-dropdown" id="diffADropdown">
+          <div class="dbs-options" id="diffAOptions"></div>
+        </div>
+      </div>
+      <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">⇄</span>
+      <div class="db-select" id="diffBWrap" style="min-width:180px">
+        <div class="dbs-trigger" id="diffBTrigger" onclick="toggleDiffDropdown('b')">
+          <span class="dbs-text" id="diffBDisplay">AI Portal</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="dbs-dropdown" id="diffBDropdown">
+          <div class="dbs-options" id="diffBOptions"></div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="runCompare()">对比</button>
+      <span id="diffMsg" class="meta"></span>
+    </div>
+    <div id="diffResult" style="display:none"></div>
+  </div>
+
   </div>
 </div>
 
@@ -1256,6 +1285,224 @@ async function runKbMigration() {
     }
   } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); }
   btn.disabled = false;
+}
+
+// ==================== 知识库差异对比 ====================
+let diffA = 'remote', diffB = 'portal';
+let diffAOpen = false, diffBOpen = false;
+
+function renderDiffOptions(which) {
+  const container = document.getElementById(which === 'a' ? 'diffAOptions' : 'diffBOptions');
+  const current = which === 'a' ? diffA : diffB;
+  container.innerHTML = MIG_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === current ? ' selected' : ''}" onclick="selectDiffWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleDiffDropdown(which) {
+  if (which === 'a') {
+    diffAOpen = !diffAOpen;
+    document.getElementById('diffADropdown').classList.toggle('open', diffAOpen);
+    document.getElementById('diffATrigger').classList.toggle('open', diffAOpen);
+    if (diffAOpen) renderDiffOptions('a');
+  } else {
+    diffBOpen = !diffBOpen;
+    document.getElementById('diffBDropdown').classList.toggle('open', diffBOpen);
+    document.getElementById('diffBTrigger').classList.toggle('open', diffBOpen);
+    if (diffBOpen) renderDiffOptions('b');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (diffAOpen && !e.target.closest('#diffAWrap')) {
+    diffAOpen = false;
+    document.getElementById('diffADropdown').classList.remove('open');
+    document.getElementById('diffATrigger').classList.remove('open');
+  }
+  if (diffBOpen && !e.target.closest('#diffBWrap')) {
+    diffBOpen = false;
+    document.getElementById('diffBDropdown').classList.remove('open');
+    document.getElementById('diffBTrigger').classList.remove('open');
+  }
+});
+
+function selectDiffWs(which, key) {
+  const label = MIG_WORKSPACES.find(w => w.key === key).label;
+  if (which === 'a') {
+    diffA = key;
+    document.getElementById('diffADisplay').textContent = label;
+    diffAOpen = false;
+    document.getElementById('diffADropdown').classList.remove('open');
+    document.getElementById('diffATrigger').classList.remove('open');
+  } else {
+    diffB = key;
+    document.getElementById('diffBDisplay').textContent = label;
+    diffBOpen = false;
+    document.getElementById('diffBDropdown').classList.remove('open');
+    document.getElementById('diffBTrigger').classList.remove('open');
+  }
+}
+
+function parseTableNames(jsonStr) {
+  try {
+    const arr = JSON.parse(jsonStr || '[]');
+    const names = [];
+    arr.forEach(t => names.push(...(t.table_names || [])));
+    return names;
+  } catch(e) { return []; }
+}
+
+async function runCompare() {
+  if (diffA === diffB) { showDialog('两个工作区不能相同'); return; }
+  const msg = document.getElementById('diffMsg');
+  const resultDiv = document.getElementById('diffResult');
+  msg.textContent = '对比中…';
+  resultDiv.style.display = 'none';
+  try {
+    const res = await fetch('/api/compare-kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a: diffA, b: diffB }),
+    });
+    const d = await res.json();
+    if (!d.ok) { msg.textContent = ''; showDialog('对比失败: ' + d.msg); return; }
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+
+    const aL = escHtml(d.a_label), bL = escHtml(d.b_label);
+    const bothTotal = (d.same_count || 0) + d.diff.length;
+    let html = `<div style="font-size:0.82rem;margin-bottom:14px;display:flex;gap:20px;flex-wrap:wrap">
+      <span><b style="color:var(--accent)">${aL}</b>: ${d.a_total} 个知识库</span>
+      <span><b style="color:var(--clay)">${bL}</b>: ${d.b_total} 个知识库</span>
+      <span>共同: ${bothTotal} 个（一致 ${d.same_count || 0}，有差异 ${d.diff.length}）</span>
+    </div>`;
+
+    // 仅在 A
+    if (d.only_a.length) {
+      html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--accent);margin-bottom:6px">仅在 ${aL} (${d.only_a.length})</div>`;
+      d.only_a.forEach(kb => {
+        const tables = parseTableNames(kb.tables_json);
+        const nameEsc = escHtml(kb.name).replace(/'/g, "\\'");
+        html += `<div style="padding:6px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-family:var(--font-mono)">· ${escHtml(kb.name)} <span style="color:var(--muted)">#${kb.id} · ${kb.nk_count}条</span></span>
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px;margin-left:auto" onclick="syncKb('${d.a_key}','${d.b_key}','${nameEsc}')">复制到 ${bL} →</button>
+          </div>
+          ${kb.usage_notes ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 12px">${escHtml(kb.usage_notes)}</div>` : ''}
+          ${tables.length ? `<div style="margin:4px 0 0 12px;display:flex;flex-wrap:wrap;gap:4px">${tables.map(n => `<span style="background:var(--accent-glow);color:var(--accent);padding:2px 8px;border-radius:10px;font-size:0.68rem;font-family:var(--font-mono)">${escHtml(n)}</span>`).join('')}</div>` : ''}
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    // 仅在 B
+    if (d.only_b.length) {
+      html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--clay);margin-bottom:6px">仅在 ${bL} (${d.only_b.length})</div>`;
+      d.only_b.forEach(kb => {
+        const tables = parseTableNames(kb.tables_json);
+        const nameEsc = escHtml(kb.name).replace(/'/g, "\\'");
+        html += `<div style="padding:6px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-family:var(--font-mono)">· ${escHtml(kb.name)} <span style="color:var(--muted)">#${kb.id} · ${kb.nk_count}条</span></span>
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px;margin-left:auto" onclick="syncKb('${d.b_key}','${d.a_key}','${nameEsc}')">← 复制到 ${aL}</button>
+          </div>
+          ${kb.usage_notes ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:2px 0 0 12px">${escHtml(kb.usage_notes)}</div>` : ''}
+          ${tables.length ? `<div style="margin:4px 0 0 12px;display:flex;flex-wrap:wrap;gap:4px">${tables.map(n => `<span style="background:var(--clay-light);color:var(--clay);padding:2px 8px;border-radius:10px;font-size:0.68rem;font-family:var(--font-mono)">${escHtml(n)}</span>`).join('')}</div>` : ''}
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    // 内容有差异
+    if (d.diff.length) {
+      html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--warm);margin-bottom:6px">内容有差异 (${d.diff.length})</div>`;
+      d.diff.forEach(df => {
+        const nameEsc = escHtml(df.name).replace(/'/g, "\\'");
+        html += `<div style="padding:10px 0;border-bottom:1px solid var(--border-light)">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:0.82rem;font-family:var(--font-mono);font-weight:500">${escHtml(df.name)} <span style="color:var(--muted);font-weight:400">${aL} #${df.a_id} (${df.a_nk}条) / ${bL} #${df.b_id} (${df.b_nk}条)</span></span>
+            <span style="margin-left:auto;display:flex;gap:6px">
+              <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncKb('${d.a_key}','${d.b_key}','${nameEsc}')">以 ${aL} 为准 →</button>
+              <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncKb('${d.b_key}','${d.a_key}','${nameEsc}')">← 以 ${bL} 为准</button>
+            </span>
+          </div>`;
+
+        // 知识库元信息差异
+        const diffs = df.diffs || {};
+        if (diffs.usage_notes || diffs.tables) {
+          html += `<div style="margin:6px 0 0 12px;font-size:0.75rem;color:var(--muted)">`;
+          if (diffs.usage_notes) html += `<div>用途说明不同</div>`;
+          if (diffs.tables) {
+            const tablesA = parseTableNames(diffs.tables.a);
+            const tablesB = parseTableNames(diffs.tables.b);
+            const onlyInA = tablesA.filter(t => !tablesB.includes(t));
+            const onlyInB = tablesB.filter(t => !tablesA.includes(t));
+            if (onlyInA.length) html += `<div>关联表仅${aL}: ${onlyInA.map(escHtml).join(', ')}</div>`;
+            if (onlyInB.length) html += `<div>关联表仅${bL}: ${onlyInB.map(escHtml).join(', ')}</div>`;
+          }
+          html += `</div>`;
+        }
+
+        // 知识条目差异
+        const itemDiffs = df.item_diffs || [];
+        if (itemDiffs.length) {
+          html += `<div style="margin:8px 0 0 12px;font-size:0.75rem">`;
+          html += `<div style="color:var(--warm);margin-bottom:4px">知识条目差异 (${itemDiffs.length}条):</div>`;
+          html += `<div style="max-height:200px;overflow-y:auto;background:var(--bg-deep);border-radius:6px;padding:8px">`;
+          itemDiffs.forEach(id => {
+            const typeKey = `[${escHtml(id.type)}] ${escHtml(id.key)}`;
+            if (id.status === 'only_a') {
+              html += `<div style="padding:3px 0;border-bottom:1px solid var(--border-light)">
+                <span style="color:var(--accent)">仅${aL}:</span> <span style="font-family:var(--font-mono)">${typeKey}</span>
+                ${id.a_name ? `<span style="color:var(--muted)"> · ${escHtml(id.a_name)}</span>` : ''}
+              </div>`;
+            } else if (id.status === 'only_b') {
+              html += `<div style="padding:3px 0;border-bottom:1px solid var(--border-light)">
+                <span style="color:var(--clay)">仅${bL}:</span> <span style="font-family:var(--font-mono)">${typeKey}</span>
+                ${id.b_name ? `<span style="color:var(--muted)"> · ${escHtml(id.b_name)}</span>` : ''}
+              </div>`;
+            } else {
+              html += `<div style="padding:3px 0;border-bottom:1px solid var(--border-light)">
+                <span style="color:var(--warm)">内容不同:</span> <span style="font-family:var(--font-mono)">${typeKey}</span>
+                <div style="margin-left:12px;color:var(--text-secondary);font-size:0.72rem">
+                  <div><span style="color:var(--accent)">${aL}:</span> ${escHtml((id.a_value || '').substring(0, 100))}${(id.a_value||'').length > 100 ? '…' : ''}</div>
+                  <div><span style="color:var(--clay)">${bL}:</span> ${escHtml((id.b_value || '').substring(0, 100))}${(id.b_value||'').length > 100 ? '…' : ''}</div>
+                </div>
+              </div>`;
+            }
+          });
+          html += `</div></div>`;
+        }
+
+        html += `</div>`;
+      });
+      html += '</div>';
+    }
+
+    if (!d.only_a.length && !d.only_b.length && !d.diff.length) {
+      html += '<div style="color:var(--green);font-size:0.85rem">✅ 两个工作区的知识库完全一致</div>';
+    }
+
+    resultDiv.innerHTML = html;
+  } catch(e) { msg.textContent = ''; showDialog('对比失败: ' + e.message); }
+}
+
+async function syncKb(source, target, kbName) {
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === source)?.label || source;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === target)?.label || target;
+  if (!await showDialog(`确定将「${kbName}」从 ${srcLabel} 同步到 ${dstLabel}？`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, target, kb_name: kbName }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    const action = d.created_new ? '新建知识库' : '覆盖更新';
+    showDialog(`同步完成！（${action}）\n写入条目: ${d.inserted_items} 条`);
+    runCompare(); // 刷新对比结果
+  } catch(e) { showDialog('同步失败: ' + e.message); }
 }
 
 // ===== 导出全部知识库 CSV =====
