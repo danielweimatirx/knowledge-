@@ -56,6 +56,14 @@ def index():
 def kb_detail_page(kb_id):
     return render_template("kb_detail.html", kb_id=kb_id)
 
+@app.route("/v2")
+def v2_index():
+    return render_template("v2_index.html")
+
+@app.route("/v2/model/<int:model_id>")
+def v2_model_detail_page(model_id):
+    return render_template("v2_model_detail.html", model_id=model_id)
+
 
 # ==================== 迁移 API ====================
 
@@ -279,6 +287,173 @@ def api_databases():
         return jsonify({"ok": False, "msg": str(e)}), 400
     except Exception as e:
         return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
+
+
+# ==================== V2 语义模型 API ====================
+
+@app.route("/api/v2/models")
+def api_v2_model_list():
+    target = request.args.get("target", "remote")
+    try:
+        return jsonify(db_service.get_semantic_model_list(target))
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
+
+
+@app.route("/api/v2/export")
+def api_v2_export():
+    target = request.args.get("target", "remote")
+    try:
+        return jsonify(db_service.get_semantic_model_export(target))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/v2/models/<int:model_id>")
+def api_v2_model_detail(model_id):
+    target = request.args.get("target", "remote")
+    try:
+        result = db_service.get_semantic_model_detail(target, model_id)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"查询失败: {e}"}), 500
+
+
+@app.route("/api/v2/models", methods=["POST"])
+def api_v2_model_create():
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True)
+    if not body or not body.get("name"):
+        return jsonify({"ok": False, "msg": "name 必填"}), 400
+    try:
+        return jsonify(db_service.create_semantic_model(target, body)), 201
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/v2/models/<int:model_id>", methods=["PUT"])
+def api_v2_model_update(model_id):
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True)
+    if not body or not body.get("name"):
+        return jsonify({"ok": False, "msg": "name 必填"}), 400
+    try:
+        result = db_service.update_semantic_model(target, model_id, body)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/v2/models/<int:model_id>", methods=["DELETE"])
+def api_v2_model_delete(model_id):
+    target = request.args.get("target", "remote")
+    try:
+        result = db_service.delete_semantic_model(target, model_id)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/v2/models/<int:model_id>/entries", methods=["POST"])
+def api_v2_entry_create(model_id):
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True) or {}
+    body["model_id"] = model_id
+    if not body.get("kind") or not body.get("key_name"):
+        return jsonify({"ok": False, "msg": "kind 和 key_name 必填"}), 400
+    try:
+        return jsonify(db_service.create_semantic_entry(target, body)), 201
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/v2/entries/<int:entry_id>", methods=["PUT"])
+def api_v2_entry_update(entry_id):
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True)
+    if not body or not body.get("kind") or not body.get("key_name"):
+        return jsonify({"ok": False, "msg": "kind 和 key_name 必填"}), 400
+    try:
+        result = db_service.update_semantic_entry(target, entry_id, body)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/v2/entries/<int:entry_id>", methods=["DELETE"])
+def api_v2_entry_delete(entry_id):
+    target = request.args.get("target", "remote")
+    try:
+        result = db_service.delete_semantic_entry(target, entry_id)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+# ==================== 问数过滤条件配置 ====================
+
+@app.route("/api/filter-rules")
+def api_filter_rules():
+    target = request.args.get("target", "remote")
+    try:
+        result = db_service.get_filter_rules(target)
+        status = 200 if result["ok"] else 500
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/filter-rules/tables")
+def api_filter_rule_tables():
+    target = request.args.get("target", "remote")
+    try:
+        return jsonify(db_service.get_jst_flat_tables(target))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/filter-rules/columns")
+def api_filter_rule_columns():
+    target = request.args.get("target", "remote")
+    table = request.args.get("table", "")
+    if not table:
+        return jsonify({"ok": False, "msg": "缺少 table 参数"}), 400
+    try:
+        return jsonify(db_service.get_table_columns(target, table))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/filter-rules", methods=["POST"])
+def api_filter_rule_save():
+    target = request.args.get("target", "remote")
+    try:
+        data = request.get_json(force=True)
+        result = db_service.save_filter_rule(target, data)
+        status = 200 if result["ok"] else 400
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/filter-rules/<int:rule_set_id>", methods=["DELETE"])
+def api_filter_rule_delete(rule_set_id):
+    target = request.args.get("target", "remote")
+    try:
+        result = db_service.delete_filter_rule(target, rule_set_id)
+        status = 200 if result["ok"] else 404
+        return jsonify(result), status
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 
 if __name__ == "__main__":

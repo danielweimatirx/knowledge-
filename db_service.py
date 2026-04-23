@@ -856,3 +856,428 @@ def migrate_knowledge_bases(source: str, target: str, kb_ids: list = None, dry_r
             dst_conn.close()
     finally:
         src_conn.close()
+
+
+# ==================== V2 语义模型 ====================
+
+def get_semantic_model_list(target: str) -> dict:
+    """获取语义模型列表"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT sm.id, sm.name, sm.description, "
+                "CAST(sm.`tables` AS CHAR) AS tables_json, "
+                "sm.knowledge_base_id, sm.created_by, sm.updated_by, "
+                "sm.created_at, sm.updated_at, "
+                "IFNULL(cnt.c, 0) AS entry_count "
+                "FROM moi.semantic_models sm "
+                "LEFT JOIN ("
+                "  SELECT model_id, COUNT(*) AS c "
+                "  FROM moi.semantic_entries GROUP BY model_id"
+                ") cnt ON sm.id = cnt.model_id "
+                "ORDER BY sm.id"
+            )
+            rows = cur.fetchall()
+        return {"ok": True, "data": _serialize(rows)}
+    finally:
+        conn.close()
+
+
+def get_semantic_model_detail(target: str, model_id: int) -> dict:
+    """获取语义模型详情及其条目"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, name, description, "
+                "CAST(`tables` AS CHAR) AS tables_json, "
+                "knowledge_base_id, created_by, updated_by, created_at, updated_at "
+                "FROM moi.semantic_models WHERE id = %s",
+                (model_id,)
+            )
+            model = cur.fetchone()
+        if not model:
+            return {"ok": False, "msg": f"语义模型 {model_id} 不存在"}
+
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, model_id, kind, key_name, "
+                "CAST(`tables` AS CHAR) AS tables_json, "
+                "CAST(spec AS CHAR) AS spec_json, "
+                "created_by, updated_by, created_at, updated_at "
+                "FROM moi.semantic_entries WHERE model_id = %s "
+                "ORDER BY kind, key_name",
+                (model_id,)
+            )
+            entries = cur.fetchall()
+
+        return {"ok": True, "model": _serialize(model), "entries": _serialize(entries)}
+    finally:
+        conn.close()
+
+
+def create_semantic_model(target: str, data: dict) -> dict:
+    """创建语义模型"""
+    conn = _get_conn(target)
+    try:
+        tables_json = data.get("tables_json") or "[]"
+        # 计算 table_set_hash
+        try:
+            tables_list = sorted(json.loads(tables_json))
+            table_set_hash = str(hash(tuple(tables_list)))[:16]
+        except:
+            table_set_hash = ""
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO moi.semantic_models "
+                "(name, description, `tables`, table_set_hash, created_by, updated_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (
+                    data["name"],
+                    data.get("description"),
+                    tables_json,
+                    table_set_hash,
+                    data.get("created_by", "admin"),
+                    data.get("updated_by", "admin"),
+                )
+            )
+            new_id = cur.lastrowid
+        conn.commit()
+        return {"ok": True, "id": new_id}
+    finally:
+        conn.close()
+
+
+def update_semantic_model(target: str, model_id: int, data: dict) -> dict:
+    """更新语义模型"""
+    conn = _get_conn(target)
+    try:
+        tables_json = data.get("tables_json")
+        table_set_hash = None
+        if tables_json:
+            try:
+                tables_list = sorted(json.loads(tables_json))
+                table_set_hash = str(hash(tuple(tables_list)))[:16]
+            except:
+                table_set_hash = ""
+
+        with conn.cursor() as cur:
+            if tables_json:
+                cur.execute(
+                    "UPDATE moi.semantic_models SET name = %s, description = %s, "
+                    "`tables` = %s, table_set_hash = %s, updated_by = %s, updated_at = NOW() "
+                    "WHERE id = %s",
+                    (data["name"], data.get("description"), tables_json, table_set_hash,
+                     data.get("updated_by", "admin"), model_id)
+                )
+            else:
+                cur.execute(
+                    "UPDATE moi.semantic_models SET name = %s, description = %s, "
+                    "updated_by = %s, updated_at = NOW() WHERE id = %s",
+                    (data["name"], data.get("description"), data.get("updated_by", "admin"), model_id)
+                )
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"语义模型 {model_id} 不存在"}
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+def delete_semantic_model(target: str, model_id: int) -> dict:
+    """删除语义模型及其条目"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM moi.semantic_entries WHERE model_id = %s", (model_id,))
+            entries_deleted = cur.rowcount
+            cur.execute("DELETE FROM moi.semantic_models WHERE id = %s", (model_id,))
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"语义模型 {model_id} 不存在"}
+        conn.commit()
+        return {"ok": True, "entries_deleted": entries_deleted}
+    finally:
+        conn.close()
+
+
+def create_semantic_entry(target: str, data: dict) -> dict:
+    """创建语义条目"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO moi.semantic_entries "
+                "(model_id, kind, key_name, `tables`, spec, created_by, updated_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (
+                    data["model_id"],
+                    data["kind"],
+                    data["key_name"],
+                    data.get("tables_json"),
+                    data.get("spec_json", "{}"),
+                    data.get("created_by", "admin"),
+                    data.get("updated_by", "admin"),
+                )
+            )
+            new_id = cur.lastrowid
+        conn.commit()
+        return {"ok": True, "id": new_id}
+    finally:
+        conn.close()
+
+
+def update_semantic_entry(target: str, entry_id: int, data: dict) -> dict:
+    """更新语义条目"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE moi.semantic_entries SET kind = %s, key_name = %s, "
+                "`tables` = %s, spec = %s, updated_by = %s, updated_at = NOW() "
+                "WHERE id = %s",
+                (
+                    data["kind"],
+                    data["key_name"],
+                    data.get("tables_json"),
+                    data.get("spec_json", "{}"),
+                    data.get("updated_by", "admin"),
+                    entry_id,
+                )
+            )
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"语义条目 {entry_id} 不存在"}
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+def delete_semantic_entry(target: str, entry_id: int) -> dict:
+    """删除语义条目"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM moi.semantic_entries WHERE id = %s", (entry_id,))
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"语义条目 {entry_id} 不存在"}
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# ==================== 问数过滤条件配置 ====================
+
+def _get_jst_conn(target: str):
+    """获取 jst 数据库连接（过滤规则存储在 jst 库）"""
+    cfg = DB_CONFIGS.get(target)
+    if not cfg:
+        raise ValueError(f"未知 target: {target}")
+    jst_cfg = dict(cfg)
+    jst_cfg["database"] = "jst"
+    return pymysql.connect(**jst_cfg)
+
+
+def get_filter_rules(target: str) -> dict:
+    """
+    读取 fin_explore_filter_rule_set + fin_explore_filter_rule，
+    按 config_key 分组返回，每条 rule_set 附带其下的 rule 列表。
+    """
+    conn = _get_jst_conn(target)
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, config_key, config_value, table_name, note, "
+                "created_at, updated_at "
+                "FROM jst.fin_explore_filter_rule_set ORDER BY config_key, table_name"
+            )
+            rule_sets = cur.fetchall()
+
+            cur.execute(
+                "SELECT id, rule_set_id, field, op, literal_value, "
+                "CAST(literal_values AS CHAR) AS literal_values, "
+                "value_source, order_idx "
+                "FROM jst.fin_explore_filter_rule ORDER BY rule_set_id, order_idx"
+            )
+            rules = cur.fetchall()
+
+        # 按 rule_set_id 分组 rules
+        rules_by_set = {}
+        for r in rules:
+            sid = r["rule_set_id"]
+            if sid not in rules_by_set:
+                rules_by_set[sid] = []
+            rules_by_set[sid].append(r)
+
+        # 组装结果
+        grouped = {}
+        for rs in rule_sets:
+            key = rs["config_key"]
+            if key not in grouped:
+                grouped[key] = []
+            rs["rules"] = rules_by_set.get(rs["id"], [])
+            if isinstance(rs.get("created_at"), datetime):
+                rs["created_at"] = rs["created_at"].isoformat(timespec="seconds")
+            if isinstance(rs.get("updated_at"), datetime):
+                rs["updated_at"] = rs["updated_at"].isoformat(timespec="seconds")
+            grouped[key].append(rs)
+
+        return {"ok": True, "data": grouped}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
+
+
+def get_jst_flat_tables(target: str) -> dict:
+    """获取 jst_flat_table 数据库中所有表名"""
+    conn = _get_jst_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT table_name FROM information_schema.columns "
+                "WHERE table_schema = 'jst_flat_table' ORDER BY table_name"
+            )
+            tables = [r[0] for r in cur.fetchall()]
+        return {"ok": True, "tables": tables}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
+
+
+def get_table_columns(target: str, table_name: str) -> dict:
+    """获取 jst_flat_table 中指定表的所有列名"""
+    conn = _get_jst_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT column_name, column_comment "
+                "FROM information_schema.columns "
+                "WHERE table_schema = 'jst_flat_table' AND table_name = %s "
+                "ORDER BY ordinal_position",
+                (table_name,),
+            )
+            cols = [{"name": r[0], "comment": r[1] or ""} for r in cur.fetchall()]
+        return {"ok": True, "columns": cols}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
+
+
+def save_filter_rule(target: str, data: dict) -> dict:
+    """
+    新增或更新一条过滤规则 (rule_set + rule)。
+    data: {id?, config_key, config_value, table_name, note,
+           field, op, literal_value?, literal_values?, value_source?}
+    """
+    conn = _get_jst_conn(target)
+    try:
+        rule_set_id = data.get("id")
+        with conn.cursor() as cur:
+            if rule_set_id:
+                # 更新 rule_set
+                cur.execute(
+                    "UPDATE jst.fin_explore_filter_rule_set "
+                    "SET config_key=%s, config_value=%s, table_name=%s, note=%s "
+                    "WHERE id=%s",
+                    (data["config_key"], data["config_value"],
+                     data["table_name"], data.get("note", ""),
+                     rule_set_id),
+                )
+                # 删除旧 rules 再重建
+                cur.execute(
+                    "DELETE FROM jst.fin_explore_filter_rule WHERE rule_set_id=%s",
+                    (rule_set_id,),
+                )
+            else:
+                # 新增 rule_set
+                cur.execute(
+                    "INSERT INTO jst.fin_explore_filter_rule_set "
+                    "(config_key, config_value, table_name, note) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (data["config_key"], data["config_value"],
+                     data["table_name"], data.get("note", "")),
+                )
+                rule_set_id = cur.lastrowid
+
+            # 插入 rule
+            field = data.get("field", "")
+            if field:
+                lit_val = data.get("literal_value") or None
+                lit_vals = data.get("literal_values") or None
+                if lit_vals and isinstance(lit_vals, list):
+                    lit_vals = json.dumps(lit_vals, ensure_ascii=False)
+                cur.execute(
+                    "INSERT INTO jst.fin_explore_filter_rule "
+                    "(rule_set_id, field, op, literal_value, literal_values, "
+                    "value_source, order_idx) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, 0)",
+                    (rule_set_id, field, data.get("op", "eq"),
+                     lit_val, lit_vals, data.get("value_source") or None),
+                )
+            conn.commit()
+        return {"ok": True, "id": rule_set_id}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
+
+
+def delete_filter_rule(target: str, rule_set_id: int) -> dict:
+    """删除一条过滤规则 (rule_set + 关联的 rules)"""
+    conn = _get_jst_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM jst.fin_explore_filter_rule WHERE rule_set_id=%s",
+                (rule_set_id,),
+            )
+            cur.execute(
+                "DELETE FROM jst.fin_explore_filter_rule_set WHERE id=%s",
+                (rule_set_id,),
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"规则 {rule_set_id} 不存在"}
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
+
+
+def get_semantic_model_export(target: str) -> dict:
+    """获取所有语义模型及其条目，用于导出"""
+    conn = _get_conn(target)
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, name, description, "
+                "CAST(`tables` AS CHAR) AS tables_json, "
+                "created_by, updated_by, created_at, updated_at "
+                "FROM moi.semantic_models ORDER BY id"
+            )
+            models = cur.fetchall()
+
+            cur.execute(
+                "SELECT id, model_id, kind, key_name, "
+                "CAST(`tables` AS CHAR) AS tables_json, "
+                "CAST(spec AS TEXT) AS spec_json, "
+                "created_by, updated_by, created_at, updated_at "
+                "FROM moi.semantic_entries ORDER BY model_id, kind, key_name"
+            )
+            entries = cur.fetchall()
+
+        return {
+            "ok": True,
+            "models": _serialize(models),
+            "entries": _serialize(entries),
+        }
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
