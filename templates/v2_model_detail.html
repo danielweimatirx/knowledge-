@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>语义模型详情 - NL2SQL V2</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8; --bg-deep: #ebe4d6; --card: #fffcf5;
+    --border: #d4c9b4; --border-light: #e8dfd0;
+    --accent: #5a7a5a; --accent-glow: rgba(90,122,90,0.12);
+    --purple: #7c5cbf; --purple-light: rgba(124,92,191,0.1);
+    --blue: #4a7a9a; --blue-light: rgba(74,122,154,0.1);
+    --warm: #c17f4e; --warm-light: rgba(193,127,78,0.1);
+    --clay: #b85c3a; --clay-light: rgba(184,92,58,0.08);
+    --green: #4a7a4a; --green-light: rgba(74,122,74,0.1);
+    --text: #3d3428; --text-secondary: #6b5e4f; --muted: #9a8b78;
+    --shadow: 0 2px 20px rgba(61,52,40,0.06);
+    --radius: 16px; --radius-sm: 10px;
+    --font-display: 'DM Serif Display', Georgia, serif;
+    --font-body: 'DM Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header { background: var(--card); border-bottom: 1px solid var(--border-light); padding: 20px 28px; position: sticky; top: 0; z-index: 50; }
+  .header-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .header h1 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 400; }
+  .header h1 .mid { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); margin-left: 8px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .nav-link { font-size: 0.85rem; color: var(--purple); text-decoration: none; }
+  .nav-link:hover { text-decoration: underline; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px; }
+
+  .model-info { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow); }
+  .model-info h2 { font-family: var(--font-display); font-size: 1.1rem; font-weight: 400; margin-bottom: 12px; }
+  .model-desc { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; }
+  .model-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
+  .table-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .table-tag { background: var(--accent-glow); color: var(--accent); padding: 4px 12px; border-radius: 14px; font-size: 0.75rem; font-family: var(--font-mono); }
+
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .section-header h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 400; }
+  .section-header .count { font-size: 0.75rem; color: var(--muted); }
+
+  button { font-family: var(--font-body); font-size: 0.85rem; padding: 9px 20px; border-radius: 24px; border: none; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+  .btn-primary { background: var(--purple); color: #fff; }
+  .btn-primary:hover { background: #6a4aaf; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg-deep); color: var(--text); }
+  .btn-danger { background: var(--clay-light); color: var(--clay); }
+  .btn-danger:hover { background: var(--clay); color: #fff; }
+  .btn-sm { font-size: 0.72rem; padding: 5px 14px; }
+
+  .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border-light); }
+  .tab { padding: 10px 20px; font-size: 0.85rem; color: var(--muted); cursor: pointer; border: none; background: none; position: relative; font-weight: 500; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--purple); }
+  .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 10px; right: 10px; height: 2px; background: var(--purple); border-radius: 2px; }
+  .tab .badge { margin-left: 6px; background: var(--bg-deep); padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; }
+  .tab.active .badge { background: var(--purple-light); color: var(--purple); }
+
+  .entries-list { display: flex; flex-direction: column; gap: 10px; }
+  .entry-card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 16px; transition: all 0.2s; }
+  .entry-card:hover { border-color: var(--purple); }
+  .entry-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .entry-kind { font-size: 0.68rem; padding: 3px 10px; border-radius: 10px; font-weight: 600; text-transform: uppercase; }
+  .kind-logic_text { background: var(--warm-light); color: var(--warm); }
+  .kind-named_filter { background: var(--green-light); color: var(--green); }
+  .kind-dimension { background: var(--blue-light); color: var(--blue); }
+  .kind-column_preference { background: var(--purple-light); color: var(--purple); }
+  .entry-key { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; }
+  .entry-id { font-size: 0.68rem; color: var(--muted); margin-left: auto; }
+  .entry-spec { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; background: var(--bg-deep); padding: 10px 14px; border-radius: 6px; margin-top: 8px; font-family: var(--font-mono); white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; }
+  .entry-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+  /* Entry content styles */
+  .entry-content { margin-top: 10px; }
+  .content-row { display: flex; align-items: flex-start; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-light); }
+  .content-row:last-child { border-bottom: none; }
+  .content-label { font-size: 0.75rem; color: var(--muted); min-width: 70px; flex-shrink: 0; }
+  .content-value { font-size: 0.85rem; color: var(--text); }
+  .content-value.code { font-family: var(--font-mono); background: var(--bg-deep); padding: 4px 10px; border-radius: 6px; }
+  .content-value.highlight { background: var(--purple-light); color: var(--purple); font-weight: 500; }
+  .content-text { font-size: 0.88rem; color: var(--text); line-height: 1.7; padding: 12px 16px; background: var(--bg-deep); border-radius: 8px; border-left: 3px solid var(--warm); }
+  .content-meta { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .meta-tag { font-size: 0.72rem; color: var(--muted); background: var(--bg); padding: 3px 10px; border-radius: 10px; border: 1px solid var(--border-light); }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sample-tag { background: var(--blue-light); color: var(--blue); padding: 3px 10px; border-radius: 10px; font-size: 0.78rem; }
+
+  .empty-msg { text-align: center; padding: 40px; color: var(--muted); font-size: 0.88rem; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(61,52,40,0.4); backdrop-filter: blur(4px); z-index: 100; justify-content: center; align-items: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 28px; width: 600px; max-width: 92vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(61,52,40,0.2); }
+  .modal h2 { font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 20px; font-weight: 400; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  .field input, .field textarea, .field select { width: 100%; font-family: var(--font-body); font-size: 0.88rem; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); resize: vertical; }
+  .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--purple); }
+  .field textarea { min-height: 100px; font-family: var(--font-mono); font-size: 0.82rem; }
+  .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <a href="/" class="nav-link" onclick="sessionStorage.setItem('activePage','v2-models')">← 返回列表</a>
+    <h1 id="modelTitle">加载中…</h1>
+    <div class="header-right">
+      <button class="btn-ghost btn-sm" onclick="editModel()">编辑模型</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="model-info" id="modelInfo">
+    <div class="empty-msg">加载中…</div>
+  </div>
+
+  <div class="section-header">
+    <h3>语义条目</h3>
+    <span class="count" id="entryCount"></span>
+    <button class="btn-primary btn-sm" style="margin-left:auto" onclick="openEntryModal()">+ 新增条目</button>
+  </div>
+
+  <div class="tabs" id="kindTabs"></div>
+  <div class="entries-list" id="entriesList"></div>
+</div>
+
+<!-- Entry Modal -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal">
+    <h2 id="entryModalTitle">新增语义条目</h2>
+    <input type="hidden" id="entryEditId">
+    <div class="field">
+      <label>类型 *</label>
+      <select id="entryKind">
+        <option value="logic_text">logic_text (逻辑文本)</option>
+        <option value="named_filter">named_filter (命名过滤器)</option>
+        <option value="dimension">dimension (维度)</option>
+        <option value="column_preference">column_preference (列偏好)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>键名 *</label>
+      <input type="text" id="entryKeyName" placeholder="条目唯一标识">
+    </div>
+    <div class="field">
+      <label>作用表 (JSON)</label>
+      <input type="text" id="entryTables" placeholder='null 或 ["table1"]'>
+    </div>
+    <div class="field">
+      <label>规格 (JSON) *</label>
+      <textarea id="entrySpec" placeholder='{"content": "...", "priority": 70}'></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="closeEntryModal()">取消</button>
+      <button class="btn-primary" onclick="saveEntry()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Model Edit Modal -->
+<div class="modal-overlay" id="modelModal">
+  <div class="modal">
+    <h2>编辑语义模型</h2>
+    <div class="field">
+      <label>模型名称 *</label>
+      <input type="text" id="modelName">
+    </div>
+    <div class="field">
+      <label>描述</label>
+      <textarea id="modelDesc" style="min-height:80px;font-family:var(--font-body)"></textarea>
+    </div>
+    <div class="field">
+      <label>关联表 (JSON 数组)</label>
+      <textarea id="modelTables" placeholder='["table1", "table2"]'></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="closeModelModal()">取消</button>
+      <button class="btn-primary" onclick="saveModel()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="modal-overlay" id="dialogOverlay">
+  <div class="modal" style="width:400px;text-align:center;padding:32px 28px 24px">
+    <div id="dialogMsg" style="font-size:0.92rem;line-height:1.7;margin-bottom:24px;white-space:pre-wrap"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn-ghost" id="dialogCancel">取消</button>
+      <button class="btn-primary" id="dialogConfirm">好的</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const modelId = {{ model_id }};
+const target = new URLSearchParams(location.search).get('target') || 'remote';
+let modelData = null;
+let entriesData = [];
+let currentKind = 'all';
+
+async function loadDetail() {
+  try {
+    const res = await fetch(`/api/v2/models/${modelId}?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { document.getElementById('modelInfo').innerHTML = `<div class="empty-msg">❌ ${d.msg}</div>`; return; }
+
+    modelData = d.model;
+    entriesData = d.entries;
+
+    document.getElementById('modelTitle').innerHTML = `${esc(modelData.name)}<span class="mid">#${modelData.id}</span>`;
+    document.title = `${modelData.name} - V2 语义模型`;
+
+    let tables = [];
+    try { tables = JSON.parse(modelData.tables_json || '[]'); } catch(e) {}
+
+    document.getElementById('modelInfo').innerHTML = `
+      <h2>${esc(modelData.name)}</h2>
+      <div class="model-desc">${esc(modelData.description || '暂无描述')}</div>
+      <div class="model-meta">
+        <span>创建: ${modelData.created_at?.replace('T',' ') || '-'}</span>
+        <span>更新: ${modelData.updated_at?.replace('T',' ') || '-'}</span>
+        <span>创建人: ${esc(modelData.created_by || '-')}</span>
+        ${modelData.knowledge_base_id ? `<span>关联V1: #${modelData.knowledge_base_id}</span>` : ''}
+      </div>
+      ${tables.length ? `<div class="table-tags">${tables.map(t => `<span class="table-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+    `;
+
+    renderTabs();
+    renderEntries();
+  } catch(e) { document.getElementById('modelInfo').innerHTML = `<div class="empty-msg">❌ ${e.message}</div>`; }
+}
+
+function renderTabs() {
+  const kinds = {};
+  entriesData.forEach(e => { kinds[e.kind] = (kinds[e.kind] || 0) + 1; });
+
+  let html = `<button class="tab ${currentKind === 'all' ? 'active' : ''}" onclick="filterKind('all')">全部<span class="badge">${entriesData.length}</span></button>`;
+  Object.entries(kinds).sort((a,b) => b[1] - a[1]).forEach(([k, c]) => {
+    html += `<button class="tab ${currentKind === k ? 'active' : ''}" onclick="filterKind('${k}')">${kindLabel(k)}<span class="badge">${c}</span></button>`;
+  });
+  document.getElementById('kindTabs').innerHTML = html;
+  document.getElementById('entryCount').textContent = `共 ${entriesData.length} 条`;
+}
+
+function filterKind(kind) {
+  currentKind = kind;
+  renderTabs();
+  renderEntries();
+}
+
+function renderEntries() {
+  const list = document.getElementById('entriesList');
+  const filtered = currentKind === 'all' ? entriesData : entriesData.filter(e => e.kind === currentKind);
+
+  if (!filtered.length) { list.innerHTML = '<div class="empty-msg">暂无条目</div>'; return; }
+
+  let html = '';
+  filtered.forEach(e => {
+    let spec = {};
+    try { spec = JSON.parse(e.spec_json || '{}'); } catch(ex) {}
+
+    // 根据类型渲染不同的展示
+    let contentHtml = '';
+    if (e.kind === 'column_preference') {
+      contentHtml = `
+        <div class="entry-content">
+          <div class="content-row"><span class="content-label">废弃列</span><span class="content-value code">${esc(spec.deprecated || '-')}</span></div>
+          <div class="content-row"><span class="content-label">推荐列</span><span class="content-value code highlight">${esc(spec.preferred || '-')}</span></div>
+        </div>`;
+    } else if (e.kind === 'dimension') {
+      const synonyms = Array.isArray(spec.synonyms) ? spec.synonyms.join('、') : (spec.synonyms || '');
+      const samples = Array.isArray(spec.sample_values) ? spec.sample_values.join('、') : (spec.sample_values || '');
+      contentHtml = `
+        <div class="entry-content">
+          <div class="content-row"><span class="content-label">对应列</span><span class="content-value code">${esc(spec.column || '-')}</span></div>
+          ${synonyms ? `<div class="content-row"><span class="content-label">同义词</span><span class="content-value">${esc(synonyms)}</span></div>` : ''}
+          ${samples ? `<div class="content-row"><span class="content-label">示例值</span><span class="content-value tag-list">${spec.sample_values.map(v => `<span class="sample-tag">${esc(v)}</span>`).join('')}</span></div>` : ''}
+        </div>`;
+    } else if (e.kind === 'named_filter') {
+      const synonyms = Array.isArray(spec.synonyms) ? spec.synonyms.join('、') : (spec.synonyms || '');
+      contentHtml = `
+        <div class="entry-content">
+          <div class="content-row"><span class="content-label">过滤条件</span><span class="content-value code">${esc(spec.expr || '-')}</span></div>
+          ${synonyms ? `<div class="content-row"><span class="content-label">同义词</span><span class="content-value">${esc(synonyms)}</span></div>` : ''}
+        </div>`;
+    } else if (e.kind === 'logic_text') {
+      const stages = Array.isArray(spec.injection_stages) ? spec.injection_stages : [];
+      contentHtml = `
+        <div class="entry-content">
+          <div class="content-text">${esc(spec.content || '-')}</div>
+          <div class="content-meta">
+            ${spec.priority ? `<span class="meta-tag">优先级: ${spec.priority}</span>` : ''}
+            ${stages.length ? `<span class="meta-tag">注入阶段: ${stages.join(', ')}</span>` : ''}
+          </div>
+        </div>`;
+    } else {
+      // 未知类型，显示原始 JSON
+      let specDisplay = e.spec_json || '{}';
+      try { specDisplay = JSON.stringify(JSON.parse(specDisplay), null, 2); } catch(ex) {}
+      contentHtml = `<div class="entry-spec">${esc(specDisplay)}</div>`;
+    }
+
+    html += `
+      <div class="entry-card">
+        <div class="entry-header">
+          <span class="entry-kind kind-${e.kind}">${kindLabel(e.kind)}</span>
+          <span class="entry-key">${esc(e.key_name)}</span>
+          <span class="entry-id">#${e.id}</span>
+        </div>
+        ${contentHtml}
+        <div class="entry-actions">
+          <button class="btn-ghost btn-sm" onclick="editEntry(${e.id})">编辑</button>
+          <button class="btn-danger btn-sm" onclick="deleteEntry(${e.id},'${esc(e.key_name).replace(/'/g,"\\'")}')">删除</button>
+        </div>
+      </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function kindLabel(kind) {
+  const labels = {
+    'column_preference': '列偏好',
+    'dimension': '维度',
+    'named_filter': '命名过滤',
+    'logic_text': '逻辑文本'
+  };
+  return labels[kind] || kind;
+}
+
+function openEntryModal(entry) {
+  document.getElementById('entryModalTitle').textContent = entry ? '编辑语义条目' : '新增语义条目';
+  document.getElementById('entryEditId').value = entry ? entry.id : '';
+  document.getElementById('entryKind').value = entry ? entry.kind : 'logic_text';
+  document.getElementById('entryKeyName').value = entry ? entry.key_name : '';
+  document.getElementById('entryTables').value = entry ? (entry.tables_json || 'null') : 'null';
+  document.getElementById('entrySpec').value = entry ? (entry.spec_json || '{}') : '{}';
+  document.getElementById('entryModal').classList.add('show');
+}
+
+function closeEntryModal() { document.getElementById('entryModal').classList.remove('show'); }
+
+function editEntry(id) {
+  const entry = entriesData.find(e => e.id === id);
+  if (entry) openEntryModal(entry);
+}
+
+async function saveEntry() {
+  const editId = document.getElementById('entryEditId').value;
+  const kind = document.getElementById('entryKind').value;
+  const keyName = document.getElementById('entryKeyName').value.trim();
+  if (!keyName) { showDialog('键名必填'); return; }
+
+  const body = {
+    kind,
+    key_name: keyName,
+    tables_json: document.getElementById('entryTables').value.trim() || null,
+    spec_json: document.getElementById('entrySpec').value.trim() || '{}',
+  };
+
+  const url = editId ? `/api/v2/entries/${editId}?target=${target}` : `/api/v2/models/${modelId}/entries?target=${target}`;
+  try {
+    const res = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    closeEntryModal();
+    loadDetail();
+  } catch(e) { showDialog(e.message); }
+}
+
+async function deleteEntry(id, name) {
+  if (!await showDialog(`确定删除条目「${name}」？`, {type:'confirm'})) return;
+  try {
+    const res = await fetch(`/api/v2/entries/${id}?target=${target}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    loadDetail();
+  } catch(e) { showDialog(e.message); }
+}
+
+function editModel() {
+  document.getElementById('modelName').value = modelData.name;
+  document.getElementById('modelDesc').value = modelData.description || '';
+  document.getElementById('modelTables').value = modelData.tables_json || '[]';
+  document.getElementById('modelModal').classList.add('show');
+}
+
+function closeModelModal() { document.getElementById('modelModal').classList.remove('show'); }
+
+async function saveModel() {
+  const name = document.getElementById('modelName').value.trim();
+  if (!name) { showDialog('模型名称必填'); return; }
+
+  const body = {
+    name,
+    description: document.getElementById('modelDesc').value.trim() || null,
+    tables_json: document.getElementById('modelTables').value.trim() || '[]',
+  };
+
+  try {
+    const res = await fetch(`/api/v2/models/${modelId}?target=${target}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    closeModelModal();
+    loadDetail();
+  } catch(e) { showDialog(e.message); }
+}
+
+function showDialog(msg, {type = 'alert'} = {}) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('dialogOverlay');
+    document.getElementById('dialogMsg').textContent = msg;
+    const confirmBtn = document.getElementById('dialogConfirm');
+    const cancelBtn = document.getElementById('dialogCancel');
+    if (type === 'confirm') { confirmBtn.textContent = '确定'; cancelBtn.style.display = ''; }
+    else { confirmBtn.textContent = '好的'; cancelBtn.style.display = 'none'; }
+    overlay.classList.add('show');
+    const cleanup = (val) => { overlay.classList.remove('show'); resolve(val); };
+    confirmBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    overlay.onclick = (e) => { if (e.target === overlay) cleanup(false); };
+  });
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+loadDetail();
+</script>
+</body>
+</html>

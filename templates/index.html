@@ -13,6 +13,8 @@
     --accent: #5a7a5a; --accent-light: #7a9e7a; --accent-glow: rgba(90,122,90,0.12);
     --warm: #c17f4e; --warm-light: rgba(193,127,78,0.1);
     --clay: #b85c3a; --clay-light: rgba(184,92,58,0.08);
+    --purple: #7c5cbf; --purple-light: rgba(124,92,191,0.1);
+    --blue: #4a7a9a; --blue-light: rgba(74,122,154,0.1);
     --green: #4a7a4a; --green-light: rgba(74,122,74,0.1);
     --red: #b85c3a; --red-light: rgba(184,92,58,0.1);
     --text: #3d3428; --text-secondary: #6b5e4f; --muted: #9a8b78;
@@ -22,6 +24,7 @@
     --font-display: 'DM Serif Display', Georgia, serif;
     --font-body: 'DM Sans', -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --sidebar-width: 200px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -30,57 +33,107 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
   }
 
-  /* ===== Global header ===== */
-  .global-header {
-    background: var(--card); border-bottom: 1px solid var(--border-light);
-    padding: 20px 28px; position: sticky; top: 0; z-index: 50;
-    box-shadow: 0 1px 12px rgba(61,52,40,0.04);
+  /* ===== Layout with sidebar ===== */
+  .app-layout { display: flex; min-height: 100vh; }
+  
+  /* ===== Sidebar ===== */
+  .sidebar {
+    width: var(--sidebar-width); background: var(--card); border-right: 1px solid var(--border-light);
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+    display: flex; flex-direction: column; box-shadow: 2px 0 12px rgba(61,52,40,0.04);
   }
-  .header-inner {
-    max-width: 1400px; margin: 0 auto;
-    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  .sidebar-header {
+    padding: 20px 16px; border-bottom: 1px solid var(--border-light);
   }
-  .header-inner h1 {
-    font-family: var(--font-display); font-size: 1.4rem; font-weight: 400;
+  .sidebar-header h1 {
+    font-family: var(--font-display); font-size: 1.2rem; font-weight: 400;
     color: var(--text); letter-spacing: -0.01em;
   }
-  .header-inner h1 span { color: var(--accent); }
-  .header-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
-  .header-right label { font-size: 0.75rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
-  select {
-    font-family: var(--font-body); font-size: 0.85rem; padding: 7px 30px 7px 12px;
+  .sidebar-header h1 span { color: var(--accent); }
+  .sidebar-nav { flex: 1; padding: 12px 0; }
+  .nav-section { margin-bottom: 8px; }
+  .nav-section-title {
+    font-size: 0.68rem; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 8px 16px 6px; user-select: none;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; margin: 2px 8px; border-radius: var(--radius-sm);
+    font-size: 0.88rem; color: var(--text-secondary); cursor: pointer;
+    transition: all 0.15s; border: none; background: none; width: calc(100% - 16px);
+    text-align: left;
+  }
+  .nav-item:hover { background: var(--bg-deep); color: var(--text); }
+  .nav-item.active { background: var(--accent-glow); color: var(--accent); font-weight: 500; }
+  .nav-item.active.v2 { background: var(--purple-light); color: var(--purple); }
+  .nav-item .nav-icon { font-size: 1.1rem; width: 20px; text-align: center; }
+  .nav-item .nav-badge {
+    margin-left: auto; font-size: 0.68rem; padding: 2px 8px;
+    border-radius: 10px; background: var(--bg-deep); color: var(--muted);
+  }
+  .nav-item.active .nav-badge { background: var(--accent); color: #fff; }
+  .nav-item.active.v2 .nav-badge { background: var(--purple); color: #fff; }
+
+  .sidebar-footer {
+    padding: 12px 16px; border-top: 1px solid var(--border-light);
+  }
+  .sidebar-footer label { font-size: 0.68rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 6px; }
+  .sidebar-footer select {
+    width: 100%; font-family: var(--font-body); font-size: 0.82rem; padding: 8px 28px 8px 10px;
     border-radius: var(--radius-xs); border: 1px solid var(--border); background: var(--bg);
     color: var(--text); cursor: pointer; appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%239a8b78' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 10px center; transition: border-color 0.2s;
+    background-repeat: no-repeat; background-position: right 8px center; transition: border-color 0.2s;
   }
-  select:focus { outline: none; border-color: var(--accent); }
+  .sidebar-footer select:focus { outline: none; border-color: var(--accent); }
 
-  /* ===== Main nav tabs ===== */
-  .main-nav {
-    max-width: 1400px; margin: 0 auto; padding: 0 28px;
+  /* ===== Main content ===== */
+  .main-content { flex: 1; margin-left: var(--sidebar-width); }
+  
+  .page-header {
+    background: var(--card); border-bottom: 1px solid var(--border-light);
+    padding: 16px 28px; position: sticky; top: 0; z-index: 50;
+    box-shadow: 0 1px 12px rgba(61,52,40,0.04);
+  }
+  .page-header h2 {
+    font-family: var(--font-display); font-size: 1.2rem; font-weight: 400;
+    color: var(--text);
+  }
+  .page-header h2 .version-tag {
+    font-family: var(--font-mono); font-size: 0.68rem; padding: 3px 10px;
+    border-radius: 10px; margin-left: 10px; vertical-align: middle;
+  }
+  .page-header h2 .version-tag.v1 { background: var(--accent-glow); color: var(--accent); }
+  .page-header h2 .version-tag.v2 { background: var(--purple-light); color: var(--purple); }
+
+  /* ===== Sub tabs ===== */
+  .sub-tabs {
     display: flex; gap: 0; border-bottom: 1px solid var(--border-light);
-    background: var(--card);
+    background: var(--card); padding: 0 28px;
   }
-  .nav-tab {
-    font-family: var(--font-body); font-size: 0.88rem; font-weight: 500;
-    padding: 14px 28px; border: none; background: none; color: var(--muted);
+  .sub-tab {
+    font-family: var(--font-body); font-size: 0.85rem; font-weight: 500;
+    padding: 12px 20px; border: none; background: none; color: var(--muted);
     cursor: pointer; position: relative; transition: color 0.2s;
-    letter-spacing: 0.01em;
   }
-  .nav-tab:hover { color: var(--text); transform: none; }
-  .nav-tab.active { color: var(--accent); }
-  .nav-tab.active::after {
-    content: ''; position: absolute; bottom: -1px; left: 16px; right: 16px;
+  .sub-tab:hover { color: var(--text); }
+  .sub-tab.active { color: var(--accent); }
+  .sub-tab.active::after {
+    content: ''; position: absolute; bottom: -1px; left: 12px; right: 12px;
     height: 2px; background: var(--accent); border-radius: 2px;
   }
+  .sub-tab.v2.active { color: var(--purple); }
+  .sub-tab.v2.active::after { background: var(--purple); }
 
   /* ===== Content area ===== */
-  .container { max-width: 1400px; margin: 0 auto; padding: 28px 28px 60px; }
-  .tab-content { display: none; animation: fadeUp 0.4s ease-out; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 28px 60px; }
+  .page-content { display: none; animation: fadeUp 0.3s ease-out; }
+  .page-content.active { display: block; }
+  .tab-content { display: none; animation: fadeUp 0.3s ease-out; }
   .tab-content.active { display: block; }
 
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
   /* ===== Buttons ===== */
@@ -94,6 +147,8 @@
   button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: var(--accent-light); box-shadow: 0 4px 16px var(--accent-glow); }
+  .btn-primary.v2 { background: var(--purple); }
+  .btn-primary.v2:hover { background: #6a4aaf; box-shadow: 0 4px 16px var(--purple-light); }
   .btn-warm { background: var(--warm); color: #fff; }
   .btn-warm:hover { box-shadow: 0 4px 16px var(--warm-light); }
   .btn-data { background: var(--bg-deep); color: var(--text-secondary); border: 1px solid var(--border); }
@@ -102,157 +157,235 @@
   .btn-ghost:hover { background: var(--bg-deep); color: var(--text); }
   .btn-danger { background: var(--red-light); color: var(--red); }
   .btn-danger:hover { background: var(--red); color: #fff; }
+  .btn-sm { font-size: 0.72rem; padding: 5px 14px; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
 
-<!-- ===== Sticky Header ===== -->
-<div class="global-header">
-  <div class="header-inner">
-    <h1>NL2SQL <span>知识库</span></h1>
-    <div class="header-right">
+<div class="app-layout">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>NL2SQL <span>知识库</span></h1>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">V1 知识库</div>
+        <button class="nav-item active" onclick="switchPage('v1-kb', this)">
+          <span class="nav-icon">📚</span>
+          <span>知识库管理</span>
+          <span class="nav-badge" id="v1KbCount">-</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('v1-data', this)">
+          <span class="nav-icon">🗄️</span>
+          <span>数据查看</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('v1-migrate', this)">
+          <span class="nav-icon">🔄</span>
+          <span>迁移工具</span>
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">V2 语义模型</div>
+        <button class="nav-item v2" onclick="switchPage('v2-models', this)">
+          <span class="nav-icon">🧠</span>
+          <span>语义模型</span>
+          <span class="nav-badge" id="v2ModelCount">-</span>
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">配置管理</div>
+        <button class="nav-item" onclick="switchPage('filter-rules', this)">
+          <span class="nav-icon">🔧</span>
+          <span>问数过滤条件</span>
+        </button>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
       <label>工作区</label>
-      <select id="selTarget">
+      <select id="selTarget" onchange="onTargetChange()">
         <option value="remote">问数Dev</option>
         <option value="portal">AI Portal</option>
         <option value="local">Local (Docker)</option>
       </select>
     </div>
-  </div>
-</div>
+  </aside>
 
-<!-- ===== Tab Navigation ===== -->
-<div class="main-nav">
-  <button class="nav-tab active" onclick="switchMainTab('kb', this)">知识库</button>
-  <button class="nav-tab" onclick="switchMainTab('data', this)">数据查看</button>
-  <button class="nav-tab" onclick="switchMainTab('migrate', this)">迁移工具</button>
-</div>
+  <!-- ===== Main Content ===== -->
+  <main class="main-content">
 
-<div class="container">
-
-<!-- ==================== Tab 1: 知识库管理 ==================== -->
-<div class="tab-content active" id="tab-kb">
-  <div class="kb-toolbar">
-    <input type="text" id="kbSearch" placeholder="搜索知识库名称…" oninput="applyKbFilter()" oncompositionstart="kbComposing=true" oncompositionend="kbComposing=false;applyKbFilter()" class="kb-search-input">
-    <div class="filter-select" id="tableFilterSelect">
-      <div class="fs-trigger" onclick="toggleFilterDropdown()">
-        <span class="fs-text" id="filterDisplay">筛选关联表</span>
-        <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+    <!-- ==================== V1 知识库管理 ==================== -->
+    <div class="page-content active" id="page-v1-kb">
+      <div class="page-header">
+        <h2>知识库管理 <span class="version-tag v1">V1</span></h2>
       </div>
-      <div class="fs-dropdown" id="filterDropdown">
-        <div class="fs-search-wrap">
-          <input type="text" class="fs-search" id="filterSearch" placeholder="搜索表名…" oninput="filterFilterOptions()">
+      <div class="container">
+        <div class="kb-toolbar">
+          <input type="text" id="kbSearch" placeholder="搜索知识库名称…" oninput="applyKbFilter()" oncompositionstart="kbComposing=true" oncompositionend="kbComposing=false;applyKbFilter()" class="kb-search-input">
+          <div class="filter-select" id="tableFilterSelect">
+            <div class="fs-trigger" onclick="toggleFilterDropdown()">
+              <span class="fs-text" id="filterDisplay">筛选关联表</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+            </div>
+            <div class="fs-dropdown" id="filterDropdown">
+              <div class="fs-search-wrap">
+                <input type="text" class="fs-search" id="filterSearch" placeholder="搜索表名…" oninput="filterFilterOptions()">
+              </div>
+              <div class="fs-options" id="filterOptions"></div>
+            </div>
+          </div>
+          <div class="fs-tags" id="filterTags"></div>
+          <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+            <button class="btn-warm" onclick="openKbModal()">+ 新增知识库</button>
+            <button class="btn-ghost" onclick="exportV1Zip()">导出</button>
+            <button class="btn-ghost" onclick="loadKbList()">刷新</button>
+          </div>
+          <span id="kbMsg" class="meta" style="width:100%"></span>
         </div>
-        <div class="fs-options" id="filterOptions"></div>
-      </div>
-    </div>
-    <div class="fs-tags" id="filterTags"></div>
-    <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
-      <button class="btn-warm" onclick="openKbModal()">+ 新增知识库</button>
-      <button class="btn-ghost" onclick="exportAllCsv()">导出 CSV</button>
-      <button class="btn-ghost" onclick="loadKbList()">刷新</button>
-    </div>
-    <span id="kbMsg" class="meta" style="width:100%"></span>
-  </div>
-  <div id="kbSummary" class="kb-summary" style="display:none"></div>
-  <div id="kbGrid"></div>
-</div>
-
-<!-- ==================== Tab 2: 数据查看 ==================== -->
-<div class="tab-content" id="tab-data">
-  <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
-    <button class="btn-data" onclick="loadData()">加载数据</button>
-    <span id="dataMsg" class="meta"></span>
-  </div>
-  <div class="data-tab-bar">
-    <button class="active" onclick="switchDataTab('kb', this)">knowledge_base</button>
-    <button onclick="switchDataTab('nk', this)">nl2sql_knowledge</button>
-  </div>
-  <div id="dtab-kb" class="data-table-wrap"><div class="empty-msg">点击「加载数据」查看</div></div>
-  <div id="dtab-nk" class="data-table-wrap" style="display:none"><div class="empty-msg">点击「加载数据」查看</div></div>
-</div>
-
-<!-- ==================== Tab 3: 迁移工具 ==================== -->
-<div class="tab-content" id="tab-migrate">
-  <!-- 跨工作区迁移 -->
-  <div class="migrate-panel" style="margin-bottom:20px">
-    <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">跨工作区迁移</h3>
-    <div class="migrate-controls" style="margin-bottom:12px">
-      <div class="db-select" id="migSrcWrap" style="min-width:180px">
-        <div class="dbs-trigger" id="migSrcTrigger" onclick="toggleMigDropdown('src')">
-          <span class="dbs-text" id="migSrcDisplay">问数Dev</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
-        </div>
-        <div class="dbs-dropdown" id="migSrcDropdown">
-          <div class="dbs-options" id="migSrcOptions"></div>
-        </div>
-      </div>
-      <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">→</span>
-      <div class="db-select" id="migDstWrap" style="min-width:180px">
-        <div class="dbs-trigger" id="migDstTrigger" onclick="toggleMigDropdown('dst')">
-          <span class="dbs-text" id="migDstDisplay">AI Portal</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
-        </div>
-        <div class="dbs-dropdown" id="migDstDropdown">
-          <div class="dbs-options" id="migDstOptions"></div>
-        </div>
-      </div>
-      <button class="btn-primary" id="btnMigrateKb" onclick="runKbMigration()">执行迁移</button>
-      <label class="checkbox-wrap" style="margin-left:4px">
-        <input type="checkbox" id="chkMigDry"> Dry Run（空跑）
-      </label>
-      <span id="migrateMsg" class="meta"></span>
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:0.72rem;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:6px">选择知识库（不选则迁移全部）</label>
-      <div id="migKbList" style="display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow-y:auto;padding:4px 0">
-        <span class="meta">点击「加载」获取知识库列表</span>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:8px">
-        <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="loadMigKbList()">加载列表</button>
-        <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="migSelectAll(true)">全选</button>
-        <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="migSelectAll(false)">全不选</button>
-        <span id="migKbCount" class="meta" style="align-self:center"></span>
+        <div id="kbSummary" class="kb-summary" style="display:none"></div>
+        <div id="kbGrid"></div>
       </div>
     </div>
-    <div id="migrateResult" style="display:none"></div>
-  </div>
 
-  <!-- 知识库差异对比 -->
-  <div class="migrate-panel" style="margin-bottom:20px">
-    <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">知识库差异对比</h3>
-    <div class="migrate-controls" style="margin-bottom:12px">
-      <div class="db-select" id="diffAWrap" style="min-width:180px">
-        <div class="dbs-trigger" id="diffATrigger" onclick="toggleDiffDropdown('a')">
-          <span class="dbs-text" id="diffADisplay">问数Dev</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
-        </div>
-        <div class="dbs-dropdown" id="diffADropdown">
-          <div class="dbs-options" id="diffAOptions"></div>
-        </div>
+    <!-- ==================== V1 数据查看 ==================== -->
+    <div class="page-content" id="page-v1-data">
+      <div class="page-header">
+        <h2>数据查看 <span class="version-tag v1">V1</span></h2>
       </div>
-      <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">⇄</span>
-      <div class="db-select" id="diffBWrap" style="min-width:180px">
-        <div class="dbs-trigger" id="diffBTrigger" onclick="toggleDiffDropdown('b')">
-          <span class="dbs-text" id="diffBDisplay">AI Portal</span>
-          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+      <div class="container">
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+          <button class="btn-data" onclick="loadData()">加载数据</button>
+          <span id="dataMsg" class="meta"></span>
         </div>
-        <div class="dbs-dropdown" id="diffBDropdown">
-          <div class="dbs-options" id="diffBOptions"></div>
+        <div class="data-tab-bar">
+          <button class="active" onclick="switchDataTab('kb', this)">knowledge_base</button>
+          <button onclick="switchDataTab('nk', this)">nl2sql_knowledge</button>
         </div>
+        <div id="dtab-kb" class="data-table-wrap"><div class="empty-msg">点击「加载数据」查看</div></div>
+        <div id="dtab-nk" class="data-table-wrap" style="display:none"><div class="empty-msg">点击「加载数据」查看</div></div>
       </div>
-      <button class="btn-primary" onclick="runCompare()">对比</button>
-      <span id="diffMsg" class="meta"></span>
     </div>
-    <div id="diffResult" style="display:none"></div>
-  </div>
 
-  </div>
+    <!-- ==================== V1 迁移工具 ==================== -->
+    <div class="page-content" id="page-v1-migrate">
+      <div class="page-header">
+        <h2>迁移工具 <span class="version-tag v1">V1</span></h2>
+      </div>
+      <div class="container">
+        <!-- 跨工作区迁移 -->
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">跨工作区迁移</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="migSrcWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="migSrcTrigger" onclick="toggleMigDropdown('src')">
+                <span class="dbs-text" id="migSrcDisplay">问数Dev</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="migSrcDropdown">
+                <div class="dbs-options" id="migSrcOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">→</span>
+            <div class="db-select" id="migDstWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="migDstTrigger" onclick="toggleMigDropdown('dst')">
+                <span class="dbs-text" id="migDstDisplay">AI Portal</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="migDstDropdown">
+                <div class="dbs-options" id="migDstOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary" id="btnMigrateKb" onclick="runKbMigration()">执行迁移</button>
+            <label class="checkbox-wrap" style="margin-left:4px">
+              <input type="checkbox" id="chkMigDry"> Dry Run（空跑）
+            </label>
+            <span id="migrateMsg" class="meta"></span>
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="font-size:0.72rem;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:6px">选择知识库（不选则迁移全部）</label>
+            <div id="migKbList" style="display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow-y:auto;padding:4px 0">
+              <span class="meta">点击「加载」获取知识库列表</span>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="loadMigKbList()">加载列表</button>
+              <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="migSelectAll(true)">全选</button>
+              <button class="btn-ghost" style="font-size:0.75rem;padding:5px 14px" onclick="migSelectAll(false)">全不选</button>
+              <span id="migKbCount" class="meta" style="align-self:center"></span>
+            </div>
+          </div>
+          <div id="migrateResult" style="display:none"></div>
+        </div>
+
+        <!-- 知识库差异对比 -->
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">知识库差异对比</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="diffAWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="diffATrigger" onclick="toggleDiffDropdown('a')">
+                <span class="dbs-text" id="diffADisplay">问数Dev</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="diffADropdown">
+                <div class="dbs-options" id="diffAOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">⇄</span>
+            <div class="db-select" id="diffBWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="diffBTrigger" onclick="toggleDiffDropdown('b')">
+                <span class="dbs-text" id="diffBDisplay">AI Portal</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="diffBDropdown">
+                <div class="dbs-options" id="diffBOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary" onclick="runCompare()">对比</button>
+            <span id="diffMsg" class="meta"></span>
+          </div>
+          <div id="diffResult" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== V2 语义模型 ==================== -->
+    <div class="page-content" id="page-v2-models">
+      <div class="page-header">
+        <h2>语义模型 <span class="version-tag v2">V2</span></h2>
+      </div>
+      <div class="container">
+        <div class="kb-toolbar">
+          <input type="text" id="v2Search" class="kb-search-input" placeholder="搜索模型名称…" oninput="applyV2Filter()">
+          <div style="margin-left:auto;display:flex;gap:10px">
+            <button class="btn-primary v2" onclick="openV2Modal()">+ 新增模型</button>
+            <button class="btn-ghost" onclick="exportV2Zip()">导出</button>
+            <button class="btn-ghost" onclick="loadV2List()">刷新</button>
+          </div>
+        </div>
+        <div id="v2Summary" class="kb-summary" style="display:none"></div>
+        <div id="v2Grid"></div>
+      </div>
+    </div>
+
+    <!-- ==================== 问数过滤条件配置 ==================== -->
+    <div class="page-content" id="page-filter-rules">
+      <div class="page-header">
+        <h2>问数过滤条件配置</h2>
+      </div>
+      <div class="container">
+        <div class="kb-toolbar">
+          <div></div>
+          <div style="margin-left:auto;display:flex;gap:10px">
+            <button class="btn-ghost" onclick="filterRulesLoaded=false;loadFilterRules()">刷新</button>
+          </div>
+        </div>
+        <div id="frSummary" class="kb-summary" style="display:none"></div>
+        <div id="frContent"><div class="empty-msg">加载中…</div></div>
+      </div>
+    </div>
+
+  </main>
 </div>
-
-</div><!-- /container -->
-
-<!-- ===== 知识库新增/编辑弹窗 ===== -->
 <div class="modal-overlay" id="kbModal">
   <div class="modal">
     <h2 id="kbModalTitle">新增知识库</h2>
@@ -315,6 +448,134 @@
   </div>
 </div>
 
+<!-- ===== V2 语义模型弹窗 ===== -->
+<div class="modal-overlay" id="v2Modal">
+  <div class="modal">
+    <h2 id="v2ModalTitle">新增语义模型</h2>
+    <input type="hidden" id="v2EditId">
+    <div class="field">
+      <label>模型名称 *</label>
+      <input type="text" id="v2ModelName" placeholder="例如：收入成本分析">
+    </div>
+    <div class="field">
+      <label>描述</label>
+      <textarea id="v2ModelDesc" placeholder="描述这个语义模型的用途…"></textarea>
+    </div>
+    <div class="field">
+      <label>关联表 (JSON 数组)</label>
+      <textarea id="v2ModelTables" placeholder='["table1", "table2"]'></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="closeV2Modal()">取消</button>
+      <button class="btn-primary v2" onclick="saveV2Model()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 过滤规则编辑弹窗 ===== -->
+<div class="modal-overlay" id="frModal">
+  <div class="modal" style="width:560px">
+    <h2 id="frModalTitle">新增过滤规则</h2>
+    <input type="hidden" id="frEditId">
+    <div class="field">
+      <label>配置类型 *</label>
+      <select id="frConfigKey" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
+        <option value="data_category">数据口径 (data_category)</option>
+        <option value="filter_conditions">过滤条件 (filter_conditions)</option>
+        <option value="data_scope_company">数据范围-公司 (data_scope_company)</option>
+        <option value="data_scope_profit_center">数据范围-事业部 (data_scope_profit_center)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>配置值 *</label>
+      <select id="frConfigValue" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
+        <option value="LG">LG (法口)</option>
+        <option value="PC">PC (管口)</option>
+        <option value="_">_ (动态值)</option>
+        <option value="non_inter_data">non_inter_data (不含内部关联)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>表名 *</label>
+      <div class="db-select" id="frTableWrap">
+        <div class="dbs-trigger" id="frTableTrigger" onclick="toggleFrDropdown('table')">
+          <span class="dbs-text placeholder" id="frTableDisplay">-- 选择表 --</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="dbs-dropdown" id="frTableDropdown">
+          <div class="dbs-search-wrap">
+            <input type="text" class="dbs-search" id="frTableSearch" placeholder="搜索表名…" oninput="filterFrTableOptions()">
+          </div>
+          <div class="dbs-options" id="frTableOptions"></div>
+        </div>
+      </div>
+      <input type="hidden" id="frTableName" value="">
+    </div>
+    <div class="field">
+      <label>字段</label>
+      <div class="db-select" id="frFieldWrap">
+        <div class="dbs-trigger" id="frFieldTrigger" onclick="toggleFrDropdown('field')">
+          <span class="dbs-text placeholder" id="frFieldDisplay">请先选择表名</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+        </div>
+        <div class="dbs-dropdown" id="frFieldDropdown">
+          <div class="dbs-search-wrap">
+            <input type="text" class="dbs-search" id="frFieldSearch" placeholder="搜索字段名…" oninput="filterFrFieldOptions()">
+          </div>
+          <div class="dbs-options" id="frFieldOptions"></div>
+        </div>
+      </div>
+      <input type="hidden" id="frField" value="">
+      <div id="frFieldLoading" style="font-size:0.75rem;color:var(--clay);margin-top:4px;display:none">加载列信息…</div>
+    </div>
+    <div class="field">
+      <label>操作符</label>
+      <select id="frOp" onchange="onFrOpChange()" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
+        <option value="eq">= (等于)</option>
+        <option value="ne">≠ (不等于)</option>
+        <option value="in">IN (包含)</option>
+        <option value="not_in">NOT IN (不包含)</option>
+      </select>
+    </div>
+    <div class="field" id="frValueWrap">
+      <label>过滤值</label>
+      <input type="text" id="frLiteralValue" placeholder="单值，如: LG">
+      <div id="frLiteralValuesWrap" style="display:none;margin-top:8px">
+        <input type="text" id="frLiteralValues" placeholder='多值用逗号分隔，如: zst1, zst2, ub'>
+        <div style="font-size:0.7rem;color:var(--clay);margin-top:3px">多个值用英文逗号分隔</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>值来源</label>
+      <select id="frValueSource" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
+        <option value="">无 (使用字面值)</option>
+        <option value="selected_ids">selected_ids (用户选择)</option>
+        <option value="code_group_code">code_group_code (编码组映射)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>说明</label>
+      <input type="text" id="frNote" placeholder="业务说明…">
+    </div>
+    <div class="btn-row">
+      <button class="btn-ghost" onclick="closeFrModal()">取消</button>
+      <button class="btn-primary" onclick="saveFrRule()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 自定义对话框 ===== -->
+<div class="modal-overlay" id="dialogOverlay" style="z-index:200">
+  <div class="modal" style="width:400px;text-align:center;padding:32px 28px 24px">
+    <div id="dialogMsg" style="font-size:0.92rem;color:var(--text);line-height:1.7;margin-bottom:24px;white-space:pre-wrap"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn-ghost" id="dialogCancel">取消</button>
+      <button class="btn-primary" id="dialogConfirm">好的</button>
+    </div>
+  </div>
+</div>
+
+
 <style>
   /* ===== Additional styles ===== */
   .meta { font-size: 0.78rem; color: var(--muted); }
@@ -371,19 +632,14 @@
   .fs-option.selected { background: var(--green-light); }
   .fs-option.hidden { display: none; }
   .fs-option input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
-  .fs-tags {
-    display: flex; flex-wrap: wrap; gap: 5px;
-  }
+  .fs-tags { display: flex; flex-wrap: wrap; gap: 5px; }
   .fs-tag {
     display: inline-flex; align-items: center; gap: 4px;
     background: var(--accent-glow); color: var(--accent);
     padding: 4px 10px; border-radius: 14px;
     font-size: 0.72rem; font-family: var(--font-mono); cursor: default;
   }
-  .fs-tag-x {
-    cursor: pointer; font-size: 0.82rem; line-height: 1;
-    opacity: 0.5; transition: opacity 0.15s;
-  }
+  .fs-tag-x { cursor: pointer; font-size: 0.82rem; line-height: 1; opacity: 0.5; transition: opacity 0.15s; }
   .fs-tag-x:hover { opacity: 1; }
 
   /* KB Grid */
@@ -400,6 +656,7 @@
   }
   .kb-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-3px); }
   .kb-card:hover::before { opacity: 1; }
+  .kb-card.v2::before { background: linear-gradient(90deg, var(--purple), var(--blue)); }
   .kb-card h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 400; margin-bottom: 6px; color: var(--text); }
   .kb-card h3 .kid { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); font-weight: 400; margin-left: 6px; }
   .kb-card .desc {
@@ -411,6 +668,8 @@
   .badge-sm { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 600; }
   .badge-green { background: var(--green-light); color: var(--green); }
   .badge-warm { background: var(--warm-light); color: var(--warm); }
+  .badge-purple { background: var(--purple-light); color: var(--purple); }
+  .badge-blue { background: var(--blue-light); color: var(--blue); }
   .badge-db { background: var(--clay-light); color: var(--clay); font-family: var(--font-mono); letter-spacing: -0.02em; }
   .table-tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
   .table-tag { background: var(--accent-glow); color: var(--accent); padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-family: var(--font-mono); }
@@ -422,6 +681,7 @@
     box-shadow: var(--shadow);
   }
   .kb-summary .stat-num { font-family: var(--font-display); font-size: 1.5rem; color: var(--accent); }
+  .kb-summary .stat-num.v2 { color: var(--purple); }
   .kb-summary .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 
   /* Data tabs */
@@ -468,18 +728,6 @@
   .badge-running { background: var(--accent-glow); color: var(--accent); animation: breathe 2s ease-in-out infinite; }
   .badge-success { background: var(--green-light); color: var(--green); }
   .badge-error { background: var(--red-light); color: var(--red); }
-  .log-box {
-    background: #2c2418; border-radius: var(--radius-sm); padding: 16px; margin-top: 14px;
-    max-height: 420px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.78rem;
-    line-height: 1.7; white-space: pre-wrap; word-break: break-all; color: #d4c9b4;
-  }
-  .log-box::-webkit-scrollbar { width: 6px; }
-  .log-box::-webkit-scrollbar-track { background: transparent; }
-  .log-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-  .log-box .warn { color: #e8b86d; }
-  .log-box .ok { color: #8aba8a; }
-  .log-box .fail { color: #d4785a; }
-  .log-box .skip { color: #8a7b6a; }
 
   /* Modal */
   .modal-overlay {
@@ -608,13 +856,32 @@
   }
 </style>
 
+
 <script>
-// ==================== Tab 切换 ====================
-function switchMainTab(tab, btn) {
-  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+// ==================== 页面切换 ====================
+let currentPage = 'v1-kb';
+
+function switchPage(page, btn) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  
+  // 首次切换到某页面时加载数据
+  if (page === 'v1-kb' && !kbListData.length) loadKbList();
+  if (page === 'v2-models' && !v2ListData.length) loadV2List();
+  if (page === 'filter-rules' && !filterRulesLoaded) loadFilterRules();
+}
+
+function onTargetChange() {
+  // 切换工作区时重新加载当前页面数据
+  kbListData = [];
+  v2ListData = [];
+  filterRulesLoaded = false;
+  if (currentPage === 'v1-kb') loadKbList();
+  else if (currentPage === 'v2-models') loadV2List();
+  else if (currentPage === 'filter-rules') loadFilterRules();
 }
 
 // ==================== 数据查看 ====================
@@ -657,11 +924,11 @@ function switchDataTab(tab, btn) {
   document.getElementById('dtab-nk').style.display = tab === 'nk' ? '' : 'none';
 }
 
-// ==================== 知识库列表 ====================
+// ==================== V1 知识库列表 ====================
 let kbListData = [];
 let selectedFilterTables = [];
 let filterDropdownOpen = false;
-let tableCommentMap = {}; // 表名→描述映射
+let tableCommentMap = {};
 
 async function loadTableComments() {
   if (Object.keys(tableCommentMap).length) return;
@@ -744,7 +1011,6 @@ function removeFilterTable(name) {
 }
 
 function updateFilterUI() {
-  // Update trigger text
   const trigger = document.querySelector('.fs-trigger');
   const display = document.getElementById('filterDisplay');
   if (selectedFilterTables.length) {
@@ -754,14 +1020,12 @@ function updateFilterUI() {
     display.textContent = '筛选关联表';
     trigger.classList.remove('has-selection');
   }
-  // Update checkboxes
   document.querySelectorAll('.fs-option').forEach(opt => {
     const name = opt.dataset.name;
     const checked = selectedFilterTables.includes(name);
     opt.classList.toggle('selected', checked);
     opt.querySelector('input').checked = checked;
   });
-  // Update tags
   const tagsEl = document.getElementById('filterTags');
   tagsEl.innerHTML = selectedFilterTables.map(n =>
     `<span class="fs-tag">${escHtml(tableLabel(n))}<span class="fs-tag-x" onclick="removeFilterTable('${escHtml(n)}')">×</span></span>`
@@ -820,7 +1084,7 @@ async function loadKbList() {
     const res = await fetch(`/api/kb?target=${target}`);
     const d = await res.json();
     if (!d.ok) { grid.innerHTML = ''; msg.textContent = '❌ ' + d.msg; return; }
-    if (!d.data.length) { grid.innerHTML = '<div class="empty-msg">暂无知识库</div>'; return; }
+    if (!d.data.length) { grid.innerHTML = '<div class="empty-msg">暂无知识库</div>'; document.getElementById('v1KbCount').textContent = '0'; return; }
     kbListData = d.data;
     buildTableFilterOptions();
     const totalKb = d.data.length;
@@ -832,16 +1096,17 @@ async function loadKbList() {
       <div class="stat"><div class="stat-num">${totalNk}</div><div class="stat-label">知识条目</div></div>
       <div class="stat"><div class="stat-num">${allTables.size}</div><div class="stat-label">关联表</div></div>`;
     sumWrap.style.display = 'flex';
+    document.getElementById('v1KbCount').textContent = totalKb;
     renderKbGrid(d.data);
   } catch(e) { grid.innerHTML = ''; msg.textContent = '❌ ' + e.message; }
 }
+
 
 // ==================== 表选择（多选下拉） ====================
 let availableTables = [];
 let availableDatabases = [];
 let tablesMetadata = {};
 let tableDropdownOpen = false;
-
 let dbDropdownOpen = false;
 let selectedDbName = '';
 
@@ -855,12 +1120,8 @@ async function loadDatabases() {
     if (!d.ok) { document.getElementById('dbsDisplay').textContent = '加载失败'; return; }
     availableDatabases = d.databases;
     renderDbOptions();
-    // 默认选 jst_flat_table（如果存在）
-    if (d.databases.includes('jst_flat_table')) {
-      selectDb('jst_flat_table');
-    } else if (d.databases.length) {
-      selectDb(d.databases[0]);
-    }
+    if (d.databases.includes('jst_flat_table')) selectDb('jst_flat_table');
+    else if (d.databases.length) selectDb(d.databases[0]);
   } catch(e) { document.getElementById('dbsDisplay').textContent = '加载失败'; }
 }
 
@@ -878,7 +1139,6 @@ function selectDb(name) {
   document.getElementById('kbDbSelect').value = name;
   document.getElementById('dbsDisplay').textContent = name;
   document.getElementById('dbsDisplay').className = 'dbs-text';
-  // Update selected state
   document.querySelectorAll('.dbs-option').forEach(opt => {
     opt.classList.toggle('selected', opt.textContent === name);
   });
@@ -1046,10 +1306,8 @@ async function openKbModal(kb) {
   document.getElementById('kbFilesJson').value = kb ? (kb.files_json || '') : '';
   document.getElementById('kbModal').classList.add('show');
 
-  // 加载数据库列表
   if (!availableDatabases.length) await loadDatabases();
 
-  // 编辑时：从 tables_json 解析出 db_name，选中对应数据库再加载表
   let editDbName = 'jst_flat_table';
   let editTableNames = [];
   if (kb && kb.tables_json) {
@@ -1099,6 +1357,7 @@ async function saveKb() {
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 
 // ==================== 跨工作区迁移 ====================
 const MIG_WORKSPACES = [
@@ -1154,7 +1413,6 @@ function selectMigWs(which, key) {
     migSrcOpen = false;
     document.getElementById('migSrcDropdown').classList.remove('open');
     document.getElementById('migSrcTrigger').classList.remove('open');
-    // 清空已加载的列表
     migKbData = [];
     migSelectedKbIds.clear();
     document.getElementById('migKbList').innerHTML = '<span class="meta">源已切换，请重新加载列表</span>';
@@ -1286,6 +1544,7 @@ async function runKbMigration() {
   } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); }
   btn.disabled = false;
 }
+
 
 // ==================== 知识库差异对比 ====================
 let diffA = 'remote', diffB = 'portal';
@@ -1427,7 +1686,6 @@ async function runCompare() {
             </span>
           </div>`;
 
-        // 知识库元信息差异
         const diffs = df.diffs || {};
         if (diffs.usage_notes || diffs.tables) {
           html += `<div style="margin:6px 0 0 12px;font-size:0.75rem;color:var(--muted)">`;
@@ -1443,7 +1701,6 @@ async function runCompare() {
           html += `</div>`;
         }
 
-        // 知识条目差异
         const itemDiffs = df.item_diffs || [];
         if (itemDiffs.length) {
           html += `<div style="margin:8px 0 0 12px;font-size:0.75rem">`;
@@ -1501,12 +1758,144 @@ async function syncKb(source, target, kbName) {
     if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
     const action = d.created_new ? '新建知识库' : '覆盖更新';
     showDialog(`同步完成！（${action}）\n写入条目: ${d.inserted_items} 条`);
-    runCompare(); // 刷新对比结果
+    runCompare();
   } catch(e) { showDialog('同步失败: ' + e.message); }
 }
 
-// ===== 导出全部知识库 CSV =====
-async function exportAllCsv() {
+
+// ==================== V2 语义模型 ====================
+let v2ListData = [];
+
+async function loadV2List() {
+  const target = document.getElementById('selTarget').value;
+  const grid = document.getElementById('v2Grid');
+  const summary = document.getElementById('v2Summary');
+  grid.innerHTML = '<div class="empty-msg">加载中…</div>';
+  summary.style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/v2/models?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { grid.innerHTML = `<div class="empty-msg">❌ ${d.msg}</div>`; return; }
+    v2ListData = d.data;
+    if (!v2ListData.length) { grid.innerHTML = '<div class="empty-msg">暂无语义模型</div>'; document.getElementById('v2ModelCount').textContent = '0'; return; }
+
+    const totalModels = v2ListData.length;
+    const totalEntries = v2ListData.reduce((s, m) => s + (m.entry_count || 0), 0);
+    const allTables = new Set();
+    v2ListData.forEach(m => { try { JSON.parse(m.tables_json || '[]').forEach(t => allTables.add(t)); } catch(e){} });
+
+    summary.innerHTML = `
+      <div class="stat"><div class="stat-num v2">${totalModels}</div><div class="stat-label">语义模型</div></div>
+      <div class="stat"><div class="stat-num v2">${totalEntries}</div><div class="stat-label">语义条目</div></div>
+      <div class="stat"><div class="stat-num v2">${allTables.size}</div><div class="stat-label">关联表</div></div>`;
+    summary.style.display = 'flex';
+    document.getElementById('v2ModelCount').textContent = totalModels;
+    renderV2Grid(v2ListData);
+  } catch(e) { grid.innerHTML = `<div class="empty-msg">❌ ${e.message}</div>`; }
+}
+
+function applyV2Filter() {
+  const q = document.getElementById('v2Search').value.toLowerCase().trim();
+  const filtered = v2ListData.filter(m => !q || m.name.toLowerCase().includes(q));
+  renderV2Grid(filtered);
+}
+
+function renderV2Grid(data) {
+  const grid = document.getElementById('v2Grid');
+  const target = document.getElementById('selTarget').value;
+  if (!data.length) { grid.innerHTML = '<div class="empty-msg">无匹配结果</div>'; return; }
+
+  let html = '<div class="kb-grid">';
+  data.forEach(m => {
+    let tables = [];
+    try { tables = JSON.parse(m.tables_json || '[]'); } catch(e) {}
+
+    html += `
+      <div class="kb-card v2">
+        <div onclick="location.href='/v2/model/${m.id}?target=${target}'" style="flex:1">
+          <h3>${escHtml(m.name)}<span class="kid">#${m.id}</span></h3>
+          <div class="desc">${escHtml(m.description || '暂无描述')}</div>
+          <div class="card-meta">
+            <span class="badge-sm badge-purple">${m.entry_count} 条目</span>
+            <span class="badge-sm badge-blue">${tables.length} 张表</span>
+            ${m.knowledge_base_id ? `<span class="meta">关联V1 #${m.knowledge_base_id}</span>` : ''}
+          </div>
+          ${tables.length ? `<div class="table-tags">${tables.slice(0,5).map(t => `<span class="table-tag">${escHtml(t)}</span>`).join('')}${tables.length > 5 ? `<span class="meta">+${tables.length-5}</span>` : ''}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-self:flex-start">
+          <button class="btn-primary v2" style="font-size:0.72rem;padding:5px 14px" onclick="event.stopPropagation();editV2Model(${m.id})">编辑</button>
+          <button class="btn-danger" style="font-size:0.72rem;padding:5px 14px" onclick="event.stopPropagation();deleteV2Model(${m.id},'${escHtml(m.name).replace(/'/g,"\\'")}')">删除</button>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+function openV2Modal(model) {
+  document.getElementById('v2ModalTitle').textContent = model ? '编辑语义模型' : '新增语义模型';
+  document.getElementById('v2EditId').value = model ? model.id : '';
+  document.getElementById('v2ModelName').value = model ? model.name : '';
+  document.getElementById('v2ModelDesc').value = model ? (model.description || '') : '';
+  document.getElementById('v2ModelTables').value = model ? (model.tables_json || '[]') : '[]';
+  document.getElementById('v2Modal').classList.add('show');
+}
+
+function closeV2Modal() { document.getElementById('v2Modal').classList.remove('show'); }
+
+async function editV2Model(id) {
+  const target = document.getElementById('selTarget').value;
+  try {
+    const res = await fetch(`/api/v2/models/${id}?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    openV2Modal(d.model);
+  } catch(e) { showDialog(e.message); }
+}
+
+async function saveV2Model() {
+  const target = document.getElementById('selTarget').value;
+  const editId = document.getElementById('v2EditId').value;
+  const name = document.getElementById('v2ModelName').value.trim();
+  if (!name) { showDialog('模型名称必填'); return; }
+
+  const body = {
+    name,
+    description: document.getElementById('v2ModelDesc').value.trim() || null,
+    tables_json: document.getElementById('v2ModelTables').value.trim() || '[]',
+  };
+
+  const url = editId ? `/api/v2/models/${editId}?target=${target}` : `/api/v2/models?target=${target}`;
+  try {
+    const res = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    closeV2Modal();
+    loadV2List();
+  } catch(e) { showDialog(e.message); }
+}
+
+async function deleteV2Model(id, name) {
+  if (!await showDialog(`确定删除语义模型「${name}」及其所有条目？\n此操作不可恢复。`, {type:'confirm'})) return;
+  const target = document.getElementById('selTarget').value;
+  try {
+    const res = await fetch(`/api/v2/models/${id}?target=${target}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    loadV2List();
+  } catch(e) { showDialog(e.message); }
+}
+
+// ===== 导出工具函数 =====
+function _toCsv(cols, rows) {
+  const cell = v => { if (v == null) return ''; const s = String(v).replace(/"/g, '""'); return /[,"\r\n]/.test(s) ? `"${s}"` : s; };
+  return '\uFEFF' + cols.map(cell).join(',') + '\n' + rows.map(r => r.map(cell).join(',')).join('\n');
+}
+function _ts() { return new Date().toISOString().slice(0,10); }
+
+// ===== V1 导出 ZIP =====
+async function exportV1Zip() {
   const target = document.getElementById('selTarget').value;
   try {
     const res = await fetch(`/api/data?target=${target}`);
@@ -1514,37 +1903,54 @@ async function exportAllCsv() {
     if (!d.ok) { showDialog('导出失败: ' + d.msg); return; }
     if (!d.knowledge_base.length) { showDialog('暂无数据可导出'); return; }
 
-    // 构建 kb name 映射
-    const kbMap = {};
-    d.knowledge_base.forEach(kb => { kbMap[kb.id] = kb; });
+    const zip = new JSZip();
 
-    const cols = ['kb_id','kb_name','kb_usage_notes','kb_tables','nk_id','knowledge_type','name','knowledge_key','knowledge_value','associate_tables','explanation_type','created_by','updated_by','created_at','updated_at'];
-    const csvCell = v => {
-      if (v == null) return '';
-      const s = String(v).replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ').replace(/"/g, '""');
-      return /[,"]/.test(s) ? `"${s}"` : s;
-    };
+    // JSON (完整数据，用于导入)
+    zip.file('data.json', JSON.stringify({ knowledge_base: d.knowledge_base, nl2sql_knowledge: d.nl2sql_knowledge }, null, 2));
 
-    const rows = [];
-    // 对每个知识库，输出其下所有知识条目；无条目的知识库也输出一行
-    d.knowledge_base.forEach(kb => {
-      const items = d.nl2sql_knowledge.filter(nk => nk.knowledge_base_id === kb.id);
-      if (!items.length) {
-        rows.push([kb.id, kb.name, kb.usage_notes, kb.tables_json, '', '', '', '', '', '', '', kb.created_by, kb.updated_by, kb.created_at, kb.updated_at].map(csvCell).join(','));
-      } else {
-        items.forEach(nk => {
-          rows.push([kb.id, kb.name, kb.usage_notes, kb.tables_json, nk.id, nk.knowledge_type, nk.name, nk.knowledge_key, nk.knowledge_value, nk.associate_tables, nk.explanation_type, nk.created_by, nk.updated_by, nk.created_at, nk.updated_at].map(csvCell).join(','));
-        });
-      }
-    });
+    // knowledge_base.csv
+    const kbCols = ['id','name','usage_notes','tables','created_by','updated_by','created_at','updated_at'];
+    const kbRows = d.knowledge_base.map(kb => [kb.id, kb.name, kb.usage_notes, kb.tables_json, kb.created_by, kb.updated_by, kb.created_at, kb.updated_at]);
+    zip.file('knowledge_base.csv', _toCsv(kbCols, kbRows));
 
-    const bom = '\uFEFF';
-    const blob = new Blob([bom + cols.join(',') + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    // nl2sql_knowledge.csv
+    const nkCols = ['id','knowledge_base_id','knowledge_type','name','knowledge_key','knowledge_value','associate_tables','explanation_type','created_by','updated_by','created_at','updated_at'];
+    const nkRows = d.nl2sql_knowledge.map(nk => [nk.id, nk.knowledge_base_id, nk.knowledge_type, nk.name, nk.knowledge_key, nk.knowledge_value, nk.associate_tables, nk.explanation_type, nk.created_by, nk.updated_by, nk.created_at, nk.updated_at]);
+    zip.file('nl2sql_knowledge.csv', _toCsv(nkCols, nkRows));
+
+    const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `nl2sql_knowledge_export_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
+    a.href = url; a.download = `nl2sql_export_${target}_${_ts()}.zip`; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { showDialog('导出失败: ' + e.message); }
+}
+
+// ===== V2 导出 ZIP =====
+async function exportV2Zip() {
+  const target = document.getElementById('selTarget').value;
+  try {
+    const res = await fetch(`/api/v2/export?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { showDialog('导出失败: ' + d.msg); return; }
+    if (!d.models.length) { showDialog('暂无数据可导出'); return; }
+
+    const zip = new JSZip();
+
+    zip.file('data.json', JSON.stringify({ semantic_models: d.models, semantic_entries: d.entries }, null, 2));
+
+    const mCols = ['id','name','description','tables','created_by','updated_by','created_at','updated_at'];
+    const mRows = d.models.map(m => [m.id, m.name, m.description, m.tables_json, m.created_by, m.updated_by, m.created_at, m.updated_at]);
+    zip.file('semantic_models.csv', _toCsv(mCols, mRows));
+
+    const eCols = ['id','model_id','kind','key_name','tables','spec','created_by','updated_by','created_at','updated_at'];
+    const eRows = d.entries.map(e => [e.id, e.model_id, e.kind, e.key_name, e.tables_json, e.spec_json, e.created_by, e.updated_by, e.created_at, e.updated_at]);
+    zip.file('semantic_entries.csv', _toCsv(eCols, eRows));
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `semantic_export_${target}_${_ts()}.zip`; a.click();
     URL.revokeObjectURL(url);
   } catch(e) { showDialog('导出失败: ' + e.message); }
 }
@@ -1571,20 +1977,360 @@ function showDialog(msg, {type = 'alert', onConfirm = null} = {}) {
   });
 }
 
-// ===== 页面加载自动拉取知识库列表 =====
-loadTableComments().then(() => loadKbList());
-</script>
+// ==================== 问数过滤条件 ====================
+let filterRulesLoaded = false;
+let frTablesList = [];       // jst_flat_table 的所有表名
+let frColumnsCache = {};     // table_name -> [{name, comment}]
 
-<!-- 自定义对话框 -->
-<div class="modal-overlay" id="dialogOverlay" style="z-index:200">
-  <div class="modal" style="width:400px;text-align:center;padding:32px 28px 24px">
-    <div id="dialogMsg" style="font-size:0.92rem;color:var(--text);line-height:1.7;margin-bottom:24px;white-space:pre-wrap"></div>
-    <div style="display:flex;gap:10px;justify-content:center">
-      <button class="btn-ghost" id="dialogCancel">取消</button>
-      <button class="btn-primary" id="dialogConfirm">好的</button>
-    </div>
-  </div>
-</div>
+const FR_META = {
+  data_category:            { icon: '📊', title: '数据口径',           color: 'warm',   desc: '根据管口/法口筛选数据。管口(PC)适合内部管理，法口(LG)适合对外披露。' },
+  filter_conditions:        { icon: '🔍', title: '过滤条件',           color: 'accent', desc: '配置数据过滤规则，如排除内部关联交易数据。' },
+  data_scope_company:       { icon: '🏢', title: '数据范围 — 按公司',   color: 'green',  desc: '按公司维度限定统计范围，运行时由用户选择具体公司代码。' },
+  data_scope_profit_center: { icon: '🏭', title: '数据范围 — 按事业部', color: 'purple', desc: '按事业部/利润中心维度限定统计范围，运行时由用户选择具体事业部。' },
+};
+
+function frFmtOp(op) {
+  return { eq:'=', ne:'≠', in:'IN', not_in:'NOT IN', gt:'>', gte:'≥', lt:'<', lte:'≤', between:'BETWEEN', like:'LIKE', is_null:'IS NULL', is_not_null:'IS NOT NULL' }[op] || op;
+}
+
+function frFmtValue(r) {
+  if (r.value_source === 'selected_ids') return '<span style="font-size:0.72rem;padding:2px 8px;border-radius:4px;background:rgba(251,146,60,0.15);color:var(--warm)">用户选择</span>';
+  if (r.value_source === 'code_group_code') return '<span style="font-size:0.72rem;padding:2px 8px;border-radius:4px;background:rgba(251,146,60,0.15);color:var(--warm)">编码组映射</span>';
+  if (r.literal_value) return `<code style="color:var(--warm)">'${escHtml(r.literal_value)}'</code>`;
+  if (r.literal_values) {
+    try { const a = JSON.parse(r.literal_values); return `<code style="color:var(--warm)">[${a.map(v=>"'"+escHtml(v)+"'").join(', ')}]</code>`; }
+    catch { return `<code style="color:var(--warm)">${escHtml(r.literal_values)}</code>`; }
+  }
+  return '<span style="color:var(--clay)">—</span>';
+}
+
+async function loadFilterRules() {
+  const target = document.getElementById('selTarget').value;
+  const content = document.getElementById('frContent');
+  const summary = document.getElementById('frSummary');
+  content.innerHTML = '<div class="empty-msg">加载中…</div>';
+  summary.style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/filter-rules?target=${target}`);
+    const json = await res.json();
+    if (!json.ok) { content.innerHTML = `<div class="empty-msg" style="color:var(--red)">❌ ${json.msg}</div>`; return; }
+
+    const data = json.data;
+    const keys = Object.keys(data);
+    let totalSets = 0, totalRules = 0, tables = new Set();
+    for (const k of keys) { totalSets += data[k].length; for (const rs of data[k]) { tables.add(rs.table_name); totalRules += (rs.rules||[]).length; } }
+
+    summary.style.display = 'flex';
+    summary.innerHTML = `
+      <div class="stat"><div class="stat-val">${keys.length}</div><div class="stat-label">配置类型</div></div>
+      <div class="stat"><div class="stat-val">${totalSets}</div><div class="stat-label">规则集</div></div>
+      <div class="stat"><div class="stat-val">${totalRules}</div><div class="stat-label">过滤规则</div></div>
+      <div class="stat"><div class="stat-val">${tables.size}</div><div class="stat-label">涉及表</div></div>`;
+
+    const order = ['data_category','filter_conditions','data_scope_company','data_scope_profit_center'];
+    const sorted = order.filter(k=>data[k]).concat(keys.filter(k=>!order.includes(k)));
+
+    let html = '';
+    for (const key of sorted) {
+      const m = FR_META[key] || { icon:'⚙️', title:key, color:'accent', desc:'' };
+      const items = data[key];
+      html += `<div style="margin-bottom:28px">`;
+      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.2rem">${m.icon}</span>
+        <span style="font-size:1.1rem;font-weight:600">${m.title}</span>
+        <span class="version-tag" style="background:var(--${m.color});color:#fff;font-size:0.7rem">${items.length} 条</span>
+        <button class="btn-primary" style="margin-left:auto;font-size:0.75rem;padding:4px 12px" onclick="openFrModal(null,'${key}')">+ 新增</button>
+      </div>`;
+      if (m.desc) html += `<div style="font-size:0.82rem;color:var(--clay);margin-bottom:12px;line-height:1.5">${m.desc}</div>`;
+
+      html += `<table class="dtable"><thead><tr><th>表名</th><th>配置值</th><th>字段</th><th>操作符</th><th>过滤值</th><th>说明</th><th style="width:60px"></th></tr></thead><tbody>`;
+      for (const rs of items) {
+        const rules = rs.rules || [];
+        const rsIdx = `_fr_${rs.id}`;
+        window[rsIdx] = rs;
+        const actionBtns = `<div style="display:flex;gap:4px;justify-content:center">
+          <button class="btn-ghost" style="padding:4px 6px;font-size:1rem;line-height:1" onclick="editFrRule(window.${rsIdx})" title="编辑">✏️</button>
+          <button class="btn-ghost" style="padding:4px 6px;font-size:1rem;line-height:1" onclick="deleteFrRule(${rs.id})" title="删除">🗑️</button>
+        </div>`;
+        if (!rules.length) {
+          html += `<tr><td><code>${escHtml(rs.table_name)}</code></td><td>${escHtml(rs.config_value)}</td><td colspan="3" style="color:var(--clay)">（无具体规则）</td><td style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td><td>${actionBtns}</td></tr>`;
+        } else {
+          for (let i=0;i<rules.length;i++) {
+            const r = rules[i];
+            html += '<tr>';
+            if (i===0) {
+              html += `<td rowspan="${rules.length}"><code>${escHtml(rs.table_name)}</code></td>`;
+              html += `<td rowspan="${rules.length}">${escHtml(rs.config_value)}</td>`;
+            }
+            html += `<td><code style="color:var(--green)">${escHtml(r.field)}</code></td>`;
+            html += `<td><code style="color:var(--purple)">${frFmtOp(r.op)}</code></td>`;
+            html += `<td>${frFmtValue(r)}</td>`;
+            if (i===0) {
+              html += `<td rowspan="${rules.length}" style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td>`;
+              html += `<td rowspan="${rules.length}">${actionBtns}</td>`;
+            }
+            html += '</tr>';
+          }
+        }
+      }
+      html += '</tbody></table></div>';
+    }
+    content.innerHTML = html;
+    filterRulesLoaded = true;
+  } catch(e) { content.innerHTML = `<div class="empty-msg" style="color:var(--red)">❌ ${e.message}</div>`; }
+}
+
+// ---- 弹窗逻辑 ----
+let frSelectedTable = '';
+let frSelectedField = '';
+let frCurrentColumns = [];  // [{name, comment}]
+
+async function loadFrTables() {
+  if (frTablesList.length) return;
+  const target = document.getElementById('selTarget').value;
+  const res = await fetch(`/api/filter-rules/tables?target=${target}`);
+  const d = await res.json();
+  if (d.ok) frTablesList = d.tables;
+}
+
+async function loadFrColumns(tableName) {
+  if (frColumnsCache[tableName]) return frColumnsCache[tableName];
+  const target = document.getElementById('selTarget').value;
+  const loading = document.getElementById('frFieldLoading');
+  if (loading) loading.style.display = 'block';
+  const res = await fetch(`/api/filter-rules/columns?target=${target}&table=${tableName}`);
+  const d = await res.json();
+  if (loading) loading.style.display = 'none';
+  if (d.ok) { frColumnsCache[tableName] = d.columns; return d.columns; }
+  return [];
+}
+
+// -- custom dropdown toggle --
+function toggleFrDropdown(which) {
+  const trigger = document.getElementById(which === 'table' ? 'frTableTrigger' : 'frFieldTrigger');
+  const dropdown = document.getElementById(which === 'table' ? 'frTableDropdown' : 'frFieldDropdown');
+  const isOpen = dropdown.classList.contains('open');
+  // close all fr dropdowns first
+  ['frTableDropdown','frFieldDropdown'].forEach(id => {
+    document.getElementById(id).classList.remove('open');
+    document.getElementById(id.replace('Dropdown','Trigger')).classList.remove('open');
+  });
+  if (!isOpen) {
+    trigger.classList.add('open');
+    dropdown.classList.add('open');
+    const search = dropdown.querySelector('.dbs-search');
+    if (search) { search.value = ''; search.focus(); }
+    if (which === 'table') filterFrTableOptions();
+    else filterFrFieldOptions();
+  }
+}
+
+// close fr dropdowns on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('#frTableWrap')) {
+    document.getElementById('frTableDropdown').classList.remove('open');
+    document.getElementById('frTableTrigger').classList.remove('open');
+  }
+  if (!e.target.closest('#frFieldWrap')) {
+    document.getElementById('frFieldDropdown').classList.remove('open');
+    document.getElementById('frFieldTrigger').classList.remove('open');
+  }
+});
+
+function filterFrTableOptions() {
+  const q = (document.getElementById('frTableSearch').value || '').toLowerCase();
+  const container = document.getElementById('frTableOptions');
+  container.innerHTML = frTablesList
+    .filter(t => !q || t.toLowerCase().includes(q))
+    .map(t => `<div class="dbs-option${t === frSelectedTable ? ' selected' : ''}" onclick="selectFrTable('${escHtml(t)}')">${escHtml(t)}</div>`)
+    .join('');
+}
+
+function selectFrTable(name) {
+  frSelectedTable = name;
+  document.getElementById('frTableName').value = name;
+  document.getElementById('frTableDisplay').textContent = name;
+  document.getElementById('frTableDisplay').className = 'dbs-text';
+  document.getElementById('frTableDropdown').classList.remove('open');
+  document.getElementById('frTableTrigger').classList.remove('open');
+  // reset field
+  frSelectedField = '';
+  document.getElementById('frField').value = '';
+  document.getElementById('frFieldDisplay').textContent = '加载中…';
+  document.getElementById('frFieldDisplay').className = 'dbs-text placeholder';
+  // load columns
+  loadFrColumns(name).then(cols => {
+    frCurrentColumns = cols;
+    document.getElementById('frFieldDisplay').textContent = '-- 选择字段 --';
+    filterFrFieldOptions();
+  });
+}
+
+function filterFrFieldOptions() {
+  const q = (document.getElementById('frFieldSearch').value || '').toLowerCase();
+  const container = document.getElementById('frFieldOptions');
+  container.innerHTML = frCurrentColumns
+    .filter(c => !q || c.name.toLowerCase().includes(q) || (c.comment||'').toLowerCase().includes(q))
+    .map(c => {
+      const label = c.comment ? `${c.name}  <span style="color:var(--clay);font-family:inherit;font-size:0.78rem">${escHtml(c.comment)}</span>` : escHtml(c.name);
+      return `<div class="dbs-option${c.name === frSelectedField ? ' selected' : ''}" onclick="selectFrField('${escHtml(c.name)}')">${label}</div>`;
+    }).join('');
+  if (!frCurrentColumns.length && !frSelectedTable) {
+    container.innerHTML = '<div style="padding:12px 14px;color:var(--clay);font-size:0.82rem">请先选择表名</div>';
+  }
+}
+
+function selectFrField(name) {
+  frSelectedField = name;
+  document.getElementById('frField').value = name;
+  const col = frCurrentColumns.find(c => c.name === name);
+  document.getElementById('frFieldDisplay').textContent = col && col.comment ? `${name} (${col.comment})` : name;
+  document.getElementById('frFieldDisplay').className = 'dbs-text';
+  document.getElementById('frFieldDropdown').classList.remove('open');
+  document.getElementById('frFieldTrigger').classList.remove('open');
+}
+
+function onFrOpChange() {
+  const op = document.getElementById('frOp').value;
+  const isMulti = (op === 'in' || op === 'not_in');
+  document.getElementById('frLiteralValue').style.display = isMulti ? 'none' : '';
+  document.getElementById('frLiteralValuesWrap').style.display = isMulti ? 'block' : 'none';
+}
+
+function _frDefaultValue(configKey) {
+  const map = { data_category:'LG', filter_conditions:'non_inter_data', data_scope_company:'_', data_scope_profit_center:'_' };
+  return map[configKey] || '_';
+}
+
+async function openFrModal(data, presetKey) {
+  document.getElementById('frModalTitle').textContent = data ? '编辑过滤规则' : '新增过滤规则';
+  document.getElementById('frEditId').value = data ? data.id : '';
+
+  await loadFrTables();
+
+  // table
+  frSelectedTable = data ? data.table_name : '';
+  document.getElementById('frTableName').value = frSelectedTable;
+  if (frSelectedTable) {
+    document.getElementById('frTableDisplay').textContent = frSelectedTable;
+    document.getElementById('frTableDisplay').className = 'dbs-text';
+  } else {
+    document.getElementById('frTableDisplay').textContent = '-- 选择表 --';
+    document.getElementById('frTableDisplay').className = 'dbs-text placeholder';
+  }
+
+  const configKey = data ? data.config_key : (presetKey || 'data_category');
+  document.getElementById('frConfigKey').value = configKey;
+  document.getElementById('frConfigValue').value = data ? data.config_value : _frDefaultValue(configKey);
+  document.getElementById('frNote').value = data ? (data.note || '') : '';
+
+  const rule = data && data.rules && data.rules[0];
+
+  // field
+  if (frSelectedTable) {
+    const cols = await loadFrColumns(frSelectedTable);
+    frCurrentColumns = cols;
+    frSelectedField = rule ? rule.field : '';
+    document.getElementById('frField').value = frSelectedField;
+    if (frSelectedField) {
+      const col = cols.find(c => c.name === frSelectedField);
+      document.getElementById('frFieldDisplay').textContent = col && col.comment ? `${frSelectedField} (${col.comment})` : frSelectedField;
+      document.getElementById('frFieldDisplay').className = 'dbs-text';
+    } else {
+      document.getElementById('frFieldDisplay').textContent = '-- 选择字段 --';
+      document.getElementById('frFieldDisplay').className = 'dbs-text placeholder';
+    }
+  } else {
+    frCurrentColumns = [];
+    frSelectedField = '';
+    document.getElementById('frField').value = '';
+    document.getElementById('frFieldDisplay').textContent = '请先选择表名';
+    document.getElementById('frFieldDisplay').className = 'dbs-text placeholder';
+  }
+
+  document.getElementById('frOp').value = rule ? rule.op : 'eq';
+  document.getElementById('frLiteralValue').value = rule ? (rule.literal_value || '') : '';
+  if (rule && rule.literal_values) {
+    try { document.getElementById('frLiteralValues').value = JSON.parse(rule.literal_values).join(', '); }
+    catch { document.getElementById('frLiteralValues').value = rule.literal_values; }
+  } else {
+    document.getElementById('frLiteralValues').value = '';
+  }
+  document.getElementById('frValueSource').value = rule ? (rule.value_source || '') : '';
+
+  onFrOpChange();
+  document.getElementById('frModal').classList.add('show');
+}
+
+function closeFrModal() { document.getElementById('frModal').classList.remove('show'); }
+
+function editFrRule(rs) { openFrModal(rs); }
+
+async function deleteFrRule(id) {
+  const ok = await showDialog('确定删除这条过滤规则？', true);
+  if (!ok) return;
+  const target = document.getElementById('selTarget').value;
+  try {
+    const res = await fetch(`/api/filter-rules/${id}?target=${target}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    filterRulesLoaded = false;
+    loadFilterRules();
+  } catch(e) { showDialog(e.message); }
+}
+
+async function saveFrRule() {
+  const target = document.getElementById('selTarget').value;
+  const op = document.getElementById('frOp').value;
+  const isMulti = (op === 'in' || op === 'not_in');
+
+  const body = {
+    id: document.getElementById('frEditId').value || undefined,
+    config_key: document.getElementById('frConfigKey').value,
+    config_value: document.getElementById('frConfigValue').value,
+    table_name: document.getElementById('frTableName').value,
+    note: document.getElementById('frNote').value,
+    field: document.getElementById('frField').value,
+    op: op,
+    value_source: document.getElementById('frValueSource').value || undefined,
+  };
+
+  if (!body.table_name) { showDialog('请选择表名'); return; }
+
+  if (isMulti) {
+    const raw = document.getElementById('frLiteralValues').value.trim();
+    if (raw && !body.value_source) {
+      body.literal_values = raw.split(',').map(s => s.trim()).filter(Boolean);
+    }
+  } else {
+    body.literal_value = document.getElementById('frLiteralValue').value.trim() || undefined;
+  }
+
+  try {
+    const res = await fetch(`/api/filter-rules?target=${target}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog(d.msg); return; }
+    closeFrModal();
+    filterRulesLoaded = false;
+    loadFilterRules();
+  } catch(e) { showDialog(e.message); }
+}
+
+// ===== 页面加载自动拉取知识库列表 =====
+// 检查是否从 V2 详情页返回
+const savedPage = sessionStorage.getItem('activePage');
+if (savedPage) {
+  sessionStorage.removeItem('activePage');
+  const btn = document.querySelector(`.nav-item[onclick*="${savedPage}"]`);
+  if (btn) switchPage(savedPage, btn);
+  else loadTableComments().then(() => loadKbList());
+} else {
+  loadTableComments().then(() => loadKbList());
+}
+</script>
 
 </body>
 </html>
