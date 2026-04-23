@@ -270,7 +270,7 @@ def api_migrate_kb():
     if source == target:
         return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
     try:
-        result = db_service.migrate_knowledge_bases(source, target, kb_ids, dry_run=dry_run)
+        result = db_service.migrate_knowledge_bases(source, target, kb_ids, dry_run=dry_run, overwrite=body.get("overwrite", False))
         return jsonify(result)
     except ValueError as e:
         return jsonify({"ok": False, "msg": str(e)}), 400

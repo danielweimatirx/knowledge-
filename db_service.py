@@ -13,14 +13,14 @@ DB_CONFIGS = {
     "local": dict(
         host="127.0.0.1", port=16001,
         user="dump", password="111",
-        database="moi", charset="utf8mb4",
+        database="moi", charset="utf8mb4", autocommit=True,
     ),
     "remote": dict(
         host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
         port=6001,
         user="ws_bf2d347f:moi_core_system:accountadmin",
         password="moi_2d76c2c1a5eb95b160e10e0b1dc47109ded45fbc9ad7641d3adcbd07ce09da78",
-        database="moi", charset="utf8mb4",
+        database="moi", charset="utf8mb4", autocommit=True,
     ),
     "portal": dict(
         host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
@@ -711,10 +711,11 @@ WORKSPACE_INFO = {
 }
 
 
-def migrate_knowledge_bases(source: str, target: str, kb_ids: list = None, dry_run: bool = False) -> dict:
+def migrate_knowledge_bases(source: str, target: str, kb_ids: list = None, dry_run: bool = False, overwrite: bool = False) -> dict:
     """
     跨工作区迁移知识库及其知识条目。
     dry_run=True 时只读取源库统计数量，不写入目标库。
+    overwrite=True 时先清空目标库的 knowledge_base 和 nl2sql_knowledge 再插入。
     """
     src_label = WORKSPACE_LABELS.get(source, source)
     dst_label = WORKSPACE_LABELS.get(target, target)
@@ -793,6 +794,16 @@ def migrate_knowledge_bases(source: str, target: str, kb_ids: list = None, dry_r
         except Exception as e:
             return {"ok": False, "msg": f"连接目标工作区 [{dst_label}] 失败: {e}"}
         try:
+            # 覆盖模式：先清空目标库
+            deleted_kb = 0
+            deleted_nk = 0
+            if overwrite:
+                with dst_conn.cursor() as cur:
+                    cur.execute("DELETE FROM moi.nl2sql_knowledge")
+                    deleted_nk = cur.rowcount
+                    cur.execute("DELETE FROM moi.knowledge_base")
+                    deleted_kb = cur.rowcount
+
             kb_id_map = {}
             for kb in kb_rows:
                 with dst_conn.cursor() as cur:
@@ -851,6 +862,9 @@ def migrate_knowledge_bases(source: str, target: str, kb_ids: list = None, dry_r
                 "nk_count": nk_success,
                 "nk_errors": nk_errors,
                 "kb_id_map": {str(k): v for k, v in kb_id_map.items()},
+                "overwrite": overwrite,
+                "deleted_kb": deleted_kb if overwrite else 0,
+                "deleted_nk": deleted_nk if overwrite else 0,
             }
         finally:
             dst_conn.close()
@@ -868,7 +882,7 @@ def get_semantic_model_list(target: str) -> dict:
             cur.execute(
                 "SELECT sm.id, sm.name, sm.description, "
                 "CAST(sm.`tables` AS CHAR) AS tables_json, "
-                "sm.knowledge_base_id, sm.created_by, sm.updated_by, "
+                "sm.created_by, sm.updated_by, "
                 "sm.created_at, sm.updated_at, "
                 "IFNULL(cnt.c, 0) AS entry_count "
                 "FROM moi.semantic_models sm "
@@ -892,7 +906,7 @@ def get_semantic_model_detail(target: str, model_id: int) -> dict:
             cur.execute(
                 "SELECT id, name, description, "
                 "CAST(`tables` AS CHAR) AS tables_json, "
-                "knowledge_base_id, created_by, updated_by, created_at, updated_at "
+                "created_by, updated_by, created_at, updated_at "
                 "FROM moi.semantic_models WHERE id = %s",
                 (model_id,)
             )
