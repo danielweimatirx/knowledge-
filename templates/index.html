@@ -300,6 +300,9 @@
             <label class="checkbox-wrap" style="margin-left:4px">
               <input type="checkbox" id="chkMigDry"> Dry Run（空跑）
             </label>
+            <label class="checkbox-wrap" style="margin-left:4px">
+              <input type="checkbox" id="chkMigOverwrite"> 覆盖（清空目标后写入）
+            </label>
             <span id="migrateMsg" class="meta"></span>
           </div>
           <div style="margin-bottom:12px">
@@ -1477,9 +1480,11 @@ async function runKbMigration() {
   const kbIds = migSelectedKbIds.size ? [...migSelectedKbIds] : null;
   const countText = kbIds ? `${kbIds.length} 个知识库` : '全部知识库';
   const dryRun = document.getElementById('chkMigDry').checked;
+  const overwrite = document.getElementById('chkMigOverwrite').checked;
   const modeText = dryRun ? '（空跑模式）' : '';
+  const overwriteWarn = overwrite ? '\n\n⚠️ 覆盖模式：将先删除目标库所有知识库和知识条目！' : '';
 
-  if (!await showDialog(`${modeText}确定将 ${countText} 从「${srcLabel}」迁移到「${dstLabel}」？`, {type:'confirm'})) return;
+  if (!await showDialog(`${modeText}确定将 ${countText} 从「${srcLabel}」迁移到「${dstLabel}」？${overwriteWarn}`, {type:'confirm'})) return;
 
   const btn = document.getElementById('btnMigrateKb');
   const msg = document.getElementById('migrateMsg');
@@ -1492,7 +1497,7 @@ async function runKbMigration() {
     const res = await fetch('/api/migrate-kb', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source: migSrc, target: migDst, kb_ids: kbIds, dry_run: dryRun }),
+      body: JSON.stringify({ source: migSrc, target: migDst, kb_ids: kbIds, dry_run: dryRun, overwrite: overwrite }),
     });
     const d = await res.json();
     if (!d.ok) { msg.textContent = ''; showDialog((dryRun ? '空跑失败: ' : '迁移失败: ') + d.msg); btn.disabled = false; return; }
@@ -1819,7 +1824,6 @@ function renderV2Grid(data) {
           <div class="card-meta">
             <span class="badge-sm badge-purple">${m.entry_count} 条目</span>
             <span class="badge-sm badge-blue">${tables.length} 张表</span>
-            ${m.knowledge_base_id ? `<span class="meta">关联V1 #${m.knowledge_base_id}</span>` : ''}
           </div>
           ${tables.length ? `<div class="table-tags">${tables.slice(0,5).map(t => `<span class="table-tag">${escHtml(t)}</span>`).join('')}${tables.length > 5 ? `<span class="meta">+${tables.length-5}</span>` : ''}</div>` : ''}
         </div>
