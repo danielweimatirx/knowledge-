@@ -200,12 +200,17 @@
           <span class="nav-icon">🔧</span>
           <span>问数过滤条件</span>
         </button>
+        <button class="nav-item" onclick="switchPage('sys-config', this)">
+          <span class="nav-icon">⚙️</span>
+          <span>系统开关</span>
+        </button>
       </div>
     </nav>
     <div class="sidebar-footer">
       <label>工作区</label>
       <select id="selTarget" onchange="onTargetChange()">
         <option value="remote">问数Dev</option>
+        <option value="new_dev">新Dev</option>
         <option value="portal">AI Portal</option>
         <option value="local">Local (Docker)</option>
       </select>
@@ -384,6 +389,16 @@
         </div>
         <div id="frSummary" class="kb-summary" style="display:none"></div>
         <div id="frContent"><div class="empty-msg">加载中…</div></div>
+      </div>
+    </div>
+
+    <!-- ==================== 系统开关 ==================== -->
+    <div class="page-content" id="page-sys-config">
+      <div class="page-header">
+        <h2>系统开关</h2>
+      </div>
+      <div class="container">
+        <div id="sysConfigContent"><div class="empty-msg">加载中…</div></div>
       </div>
     </div>
 
@@ -875,6 +890,7 @@ function switchPage(page, btn) {
   if (page === 'v1-kb' && !kbListData.length) loadKbList();
   if (page === 'v2-models' && !v2ListData.length) loadV2List();
   if (page === 'filter-rules' && !filterRulesLoaded) loadFilterRules();
+  if (page === 'sys-config') loadSysConfig();
 }
 
 function onTargetChange() {
@@ -885,6 +901,7 @@ function onTargetChange() {
   if (currentPage === 'v1-kb') loadKbList();
   else if (currentPage === 'v2-models') loadV2List();
   else if (currentPage === 'filter-rules') loadFilterRules();
+  else if (currentPage === 'sys-config') loadSysConfig();
 }
 
 // ==================== 数据查看 ====================
@@ -1365,6 +1382,7 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ==================== 跨工作区迁移 ====================
 const MIG_WORKSPACES = [
   { key: 'remote', label: '问数Dev' },
+  { key: 'new_dev', label: '新Dev' },
   { key: 'portal', label: 'AI Portal' },
   { key: 'local', label: 'Local (Docker)' },
 ];
@@ -2321,6 +2339,51 @@ async function saveFrRule() {
     filterRulesLoaded = false;
     loadFilterRules();
   } catch(e) { showDialog(e.message); }
+}
+
+// ==================== 系统开关 ====================
+async function loadSysConfig() {
+  const target = document.getElementById('selTarget').value;
+  const container = document.getElementById('sysConfigContent');
+  container.innerHTML = '<div class="empty-msg">加载中…</div>';
+  try {
+    const res = await fetch(`/api/system-config/explore_force_agent_loop?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { container.innerHTML = `<div class="empty-msg" style="color:var(--red)">❌ ${d.msg}</div>`; return; }
+
+    const isOn = d.config_value === 'true';
+    container.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border-light);border-radius:var(--radius);padding:24px;max-width:500px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div>
+            <div style="font-size:1rem;font-weight:500;color:var(--text);margin-bottom:4px">强制 Agent Loop</div>
+            <div style="font-size:0.8rem;color:var(--clay);line-height:1.5">explore_force_agent_loop<br>开启后问数会强制使用 Agent Loop 模式处理查询</div>
+          </div>
+          <label style="position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;cursor:pointer">
+            <input type="checkbox" id="toggleAgentLoop" ${isOn ? 'checked' : ''} onchange="toggleAgentLoop(this.checked)"
+              style="opacity:0;width:0;height:0">
+            <span style="position:absolute;inset:0;background:${isOn ? 'var(--green)' : 'var(--border)'};border-radius:14px;transition:background 0.2s"></span>
+            <span style="position:absolute;top:3px;left:${isOn ? '27px' : '3px'};width:22px;height:22px;background:#fff;border-radius:50%;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span>
+          </label>
+        </div>
+        <div style="margin-top:12px;font-size:0.78rem;color:var(--muted)">
+          当前状态：<span style="color:${isOn ? 'var(--green)' : 'var(--clay)'};font-weight:600">${isOn ? '已开启' : '已关闭'}</span>
+        </div>
+      </div>`;
+  } catch(e) { container.innerHTML = `<div class="empty-msg" style="color:var(--red)">❌ ${e.message}</div>`; }
+}
+
+async function toggleAgentLoop(checked) {
+  const target = document.getElementById('selTarget').value;
+  const value = checked ? 'true' : 'false';
+  try {
+    const res = await fetch(`/api/system-config/explore_force_agent_loop?target=${target}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ value })
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('切换失败: ' + d.msg); loadSysConfig(); return; }
+    loadSysConfig();
+  } catch(e) { showDialog('切换失败: ' + e.message); loadSysConfig(); }
 }
 
 // ===== 页面加载自动拉取知识库列表 =====

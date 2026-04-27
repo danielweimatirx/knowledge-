@@ -456,5 +456,27 @@ def api_filter_rule_delete(rule_set_id):
         return jsonify({"ok": False, "msg": str(e)}), 500
 
 
+@app.route("/api/system-config/<config_name>")
+def api_system_config_get(config_name):
+    target = request.args.get("target", "remote")
+    try:
+        return jsonify(db_service.get_system_config(target, config_name))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
+@app.route("/api/system-config/<config_name>", methods=["PUT"])
+def api_system_config_set(config_name):
+    target = request.args.get("target", "remote")
+    body = request.get_json(force=True) or {}
+    value = body.get("value")
+    if value is None:
+        return jsonify({"ok": False, "msg": "缺少 value"}), 400
+    try:
+        return jsonify(db_service.set_system_config(target, config_name, value))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=9090)

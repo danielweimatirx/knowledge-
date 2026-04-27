@@ -22,6 +22,13 @@ DB_CONFIGS = {
         password="moi_2d76c2c1a5eb95b160e10e0b1dc47109ded45fbc9ad7641d3adcbd07ce09da78",
         database="moi", charset="utf8mb4", autocommit=True,
     ),
+    "new_dev": dict(
+        host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
+        port=6001,
+        user="ws_0a52bbd0:u_fc5a80864a514c67b565d520aeb5f9d1",
+        password="moi_6b1eaec993750d88fe87002e32380a81b25594bc084564379c92c5f126dd5eab",
+        database="moi", charset="utf8mb4", autocommit=True,
+    ),
     "portal": dict(
         host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
         port=6001,
@@ -701,12 +708,14 @@ def delete_knowledge_base(target: str, kb_id: int) -> dict:
 WORKSPACE_LABELS = {
     "local": "Local (Docker)",
     "remote": "问数Dev",
+    "new_dev": "新Dev",
     "portal": "AI Portal",
 }
 
 WORKSPACE_INFO = {
     "local": {"account": "dump", "host": "127.0.0.1:16001", "database": "moi", "workspace_id": "-", "workspace_name": "local-docker"},
     "remote": {"account": "ws_bf2d347f", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "ws_bf2d347f", "workspace_name": "moi_core_system"},
+    "new_dev": {"account": "ws_0a52bbd0", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "ws_0a52bbd0", "workspace_name": "new-dev"},
     "portal": {"account": "ws_bfb9ca8d", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "6a0d513b-9b28-5c5c-0e5f-145427bde36c", "workspace_name": "qa-manual-ws-20260330185108-x9f3k2"},
 }
 
@@ -1291,6 +1300,43 @@ def get_semantic_model_export(target: str) -> dict:
             "models": _serialize(models),
             "entries": _serialize(entries),
         }
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
+
+
+def get_system_config(target: str, config_name: str) -> dict:
+    """读取 jst.system_config 的某个配置项"""
+    conn = _get_jst_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT config_value FROM jst.system_config WHERE config_name = %s",
+                (config_name,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return {"ok": False, "msg": f"配置项 {config_name} 不存在"}
+        return {"ok": True, "config_name": config_name, "config_value": row[0]}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        conn.close()
+
+
+def set_system_config(target: str, config_name: str, config_value: str) -> dict:
+    """更新 jst.system_config 的某个配置项"""
+    conn = _get_jst_conn(target)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE jst.system_config SET config_value = %s WHERE config_name = %s",
+                (config_value, config_name),
+            )
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"配置项 {config_name} 不存在"}
+        return {"ok": True}
     except Exception as e:
         return {"ok": False, "msg": str(e)}
     finally:
