@@ -193,6 +193,10 @@
           <span>语义模型</span>
           <span class="nav-badge" id="v2ModelCount">-</span>
         </button>
+        <button class="nav-item v2" onclick="switchPage('v2-migrate', this)">
+          <span class="nav-icon">🔄</span>
+          <span>迁移工具</span>
+        </button>
       </div>
       <div class="nav-section">
         <div class="nav-section-title">配置管理</div>
@@ -210,7 +214,6 @@
       <label>工作区</label>
       <select id="selTarget" onchange="onTargetChange()">
         <option value="remote">问数Dev</option>
-        <option value="new_dev">新Dev</option>
         <option value="portal">AI Portal</option>
         <option value="local">Local (Docker)</option>
       </select>
@@ -311,6 +314,13 @@
             <span id="migrateMsg" class="meta"></span>
           </div>
           <div style="margin-bottom:12px">
+            <label style="font-size:0.72rem;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:6px">迁移内容</label>
+            <div style="display:flex;gap:14px;margin-bottom:12px">
+              <label class="checkbox-wrap"><input type="checkbox" id="chkMigV1" checked> V1 知识库</label>
+              <label class="checkbox-wrap"><input type="checkbox" id="chkMigSysConfig"> 系统配置</label>
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
             <label style="font-size:0.72rem;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:6px">选择知识库（不选则迁移全部）</label>
             <div id="migKbList" style="display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow-y:auto;padding:4px 0">
               <span class="meta">点击「加载」获取知识库列表</span>
@@ -372,6 +382,75 @@
         </div>
         <div id="v2Summary" class="kb-summary" style="display:none"></div>
         <div id="v2Grid"></div>
+      </div>
+    </div>
+
+    <!-- ==================== V2 迁移工具 ==================== -->
+    <div class="page-content" id="page-v2-migrate">
+      <div class="page-header">
+        <h2>迁移工具 <span class="version-tag v2">V2</span></h2>
+      </div>
+      <div class="container">
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">跨工作区迁移（V2 语义模型）</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="v2MigSrcWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="v2MigSrcTrigger" onclick="toggleV2MigDropdown('src')">
+                <span class="dbs-text" id="v2MigSrcDisplay">问数Dev</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="v2MigSrcDropdown">
+                <div class="dbs-options" id="v2MigSrcOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">→</span>
+            <div class="db-select" id="v2MigDstWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="v2MigDstTrigger" onclick="toggleV2MigDropdown('dst')">
+                <span class="dbs-text" id="v2MigDstDisplay">AI Portal</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="v2MigDstDropdown">
+                <div class="dbs-options" id="v2MigDstOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary v2" id="btnMigrateV2" onclick="runV2Migration()">执行迁移</button>
+            <label class="checkbox-wrap" style="margin-left:4px">
+              <input type="checkbox" id="chkMigV2Overwrite"> 覆盖（清空目标后写入）
+            </label>
+            <span id="migrateV2Msg" class="meta"></span>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px">将迁移目标工作区的所有 V2 语义模型及其条目（semantic_models / semantic_entries）。</div>
+          <div id="migrateV2Result" style="display:none"></div>
+        </div>
+
+        <!-- 语义模型差异对比 -->
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">语义模型差异对比</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="v2DiffAWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="v2DiffATrigger" onclick="toggleV2DiffDropdown('a')">
+                <span class="dbs-text" id="v2DiffADisplay">问数Dev</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="v2DiffADropdown">
+                <div class="dbs-options" id="v2DiffAOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">⇄</span>
+            <div class="db-select" id="v2DiffBWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="v2DiffBTrigger" onclick="toggleV2DiffDropdown('b')">
+                <span class="dbs-text" id="v2DiffBDisplay">AI Portal</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="v2DiffBDropdown">
+                <div class="dbs-options" id="v2DiffBOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary v2" onclick="runV2Compare()">对比</button>
+            <span id="v2DiffMsg" class="meta"></span>
+          </div>
+          <div id="v2DiffResult" style="display:none"></div>
+        </div>
       </div>
     </div>
 
@@ -1382,7 +1461,6 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ==================== 跨工作区迁移 ====================
 const MIG_WORKSPACES = [
   { key: 'remote', label: '问数Dev' },
-  { key: 'new_dev', label: '新Dev' },
   { key: 'portal', label: 'AI Portal' },
   { key: 'local', label: 'Local (Docker)' },
 ];
@@ -1495,77 +1573,424 @@ async function runKbMigration() {
   if (migSrc === migDst) { showDialog('源和目标不能相同'); return; }
   const srcLabel = MIG_WORKSPACES.find(w => w.key === migSrc).label;
   const dstLabel = MIG_WORKSPACES.find(w => w.key === migDst).label;
-  const kbIds = migSelectedKbIds.size ? [...migSelectedKbIds] : null;
-  const countText = kbIds ? `${kbIds.length} 个知识库` : '全部知识库';
   const dryRun = document.getElementById('chkMigDry').checked;
   const overwrite = document.getElementById('chkMigOverwrite').checked;
-  const modeText = dryRun ? '（空跑模式）' : '';
-  const overwriteWarn = overwrite ? '\n\n⚠️ 覆盖模式：将先删除目标库所有知识库和知识条目！' : '';
+  const migV1 = document.getElementById('chkMigV1').checked;
+  const migSysConfig = document.getElementById('chkMigSysConfig').checked;
 
-  if (!await showDialog(`${modeText}确定将 ${countText} 从「${srcLabel}」迁移到「${dstLabel}」？${overwriteWarn}`, {type:'confirm'})) return;
+  if (!migV1 && !migSysConfig) { showDialog('请至少选择一项迁移内容'); return; }
+
+  const parts = [];
+  if (migV1) parts.push('V1知识库');
+  if (migSysConfig) parts.push('系统配置');
+
+  const kbIds = migV1 && migSelectedKbIds.size ? [...migSelectedKbIds] : null;
+  const modeText = dryRun ? '（空跑模式）' : '';
+  const overwriteWarn = overwrite ? '\n\n⚠️ 覆盖模式：将先删除目标库对应数据！' : '';
+
+  if (!await showDialog(`${modeText}确定将 [${parts.join(' + ')}] 从「${srcLabel}」迁移到「${dstLabel}」？${overwriteWarn}`, {type:'confirm'})) return;
 
   const btn = document.getElementById('btnMigrateKb');
   const msg = document.getElementById('migrateMsg');
   const resultDiv = document.getElementById('migrateResult');
   btn.disabled = true;
-  msg.textContent = dryRun ? '空跑检查中…' : '迁移中…';
+  msg.textContent = '迁移中…';
   resultDiv.style.display = 'none';
 
+  const results = [];
   try {
-    const res = await fetch('/api/migrate-kb', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source: migSrc, target: migDst, kb_ids: kbIds, dry_run: dryRun, overwrite: overwrite }),
-    });
-    const d = await res.json();
-    if (!d.ok) { msg.textContent = ''; showDialog((dryRun ? '空跑失败: ' : '迁移失败: ') + d.msg); btn.disabled = false; return; }
+    // V1 知识库
+    if (migV1) {
+      const res = await fetch('/api/migrate-kb', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: migSrc, target: migDst, kb_ids: kbIds, dry_run: dryRun, overwrite: overwrite }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        if (dryRun) results.push(`V1知识库(空跑): ${d.kb_count} 个知识库, ${d.nk_count} 条知识`);
+        else results.push(`✓ V1知识库: 迁移 ${d.kb_count} 个知识库, ${d.nk_count} 条知识${d.overwrite ? ` (已清空旧数据: ${d.deleted_kb}库/${d.deleted_nk}条)` : ''}`);
+      } else { results.push(`✗ V1知识库: ${d.msg}`); }
+    }
+
+    // 系统配置
+    if (migSysConfig) {
+      const res = await fetch('/api/migrate-sys-config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: migSrc, target: migDst }),
+      });
+      const d = await res.json();
+      if (d.ok) results.push(`✓ 系统配置: 同步 ${d.synced}/${d.total} 项`);
+      else results.push(`✗ 系统配置: ${d.msg}`);
+    }
 
     msg.textContent = '';
     resultDiv.style.display = 'block';
-    if (dryRun) {
-      let detailHtml = '';
-      if (d.kb_details && d.kb_details.length) {
-        detailHtml = '<div style="margin-top:10px;font-size:0.82rem;color:var(--text-secondary)">' +
-          d.kb_details.map(kb => `<div style="padding:3px 0">· ${escHtml(kb.name)} <span style="color:var(--muted)">#${kb.id}</span> — ${kb.nk_count} 条知识</div>`).join('') +
-          '</div>';
-      }
-      resultDiv.innerHTML = `
-        <div style="background:var(--warm-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem;color:var(--text)">
-          <div style="color:var(--warm);font-weight:500;margin-bottom:10px">🔍 空跑预览（未实际写入）</div>
-          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:0.8rem;margin-bottom:10px;font-family:var(--font-mono)">
-            <span style="color:var(--muted)">源工作区</span>
-            <span><b style="color:var(--accent)">${escHtml(d.source_label)}</b></span>
-            <span style="color:var(--muted)">workspace_id</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).workspace_id||'')}</span>
-            <span style="color:var(--muted)">workspace_name</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).workspace_name||'')}</span>
-            <span style="color:var(--muted)">account / db</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).account||'')} / ${escHtml((d.source_info||{}).database||'')}</span>
-            <span style="color:var(--muted)">host</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.source_info||{}).host||'')}</span>
-            <span style="color:var(--muted);padding-top:6px;border-top:1px solid var(--border-light)">目标工作区</span>
-            <span style="padding-top:6px;border-top:1px solid var(--border-light)"><b style="color:var(--clay)">${escHtml(d.target_label)}</b></span>
-            <span style="color:var(--muted)">workspace_id</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).workspace_id||'')}</span>
-            <span style="color:var(--muted)">workspace_name</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).workspace_name||'')}</span>
-            <span style="color:var(--muted)">account / db</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).account||'')} / ${escHtml((d.target_info||{}).database||'')}</span>
-            <span style="color:var(--muted)">host</span>
-            <span style="color:var(--text-secondary)">${escHtml((d.target_info||{}).host||'')}</span>
+    resultDiv.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem">
+        <div style="font-weight:500;margin-bottom:10px;color:var(--accent)">迁移结果 (${srcLabel} → ${dstLabel})</div>
+        ${results.map(r => `<div style="padding:4px 0;${r.startsWith('✗') ? 'color:var(--clay)' : ''}">${escHtml(r)}</div>`).join('')}
+      </div>`;
+    btn.disabled = false;
+  } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); btn.disabled = false; }
+}
+
+
+// ==================== V2 跨工作区迁移 ====================
+let v2MigSrc = 'remote', v2MigDst = 'portal';
+let v2MigSrcOpen = false, v2MigDstOpen = false;
+
+function renderV2MigOptions(which) {
+  const container = document.getElementById(which === 'src' ? 'v2MigSrcOptions' : 'v2MigDstOptions');
+  const current = which === 'src' ? v2MigSrc : v2MigDst;
+  container.innerHTML = MIG_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === current ? ' selected' : ''}" onclick="selectV2MigWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleV2MigDropdown(which) {
+  if (which === 'src') {
+    v2MigSrcOpen = !v2MigSrcOpen;
+    document.getElementById('v2MigSrcDropdown').classList.toggle('open', v2MigSrcOpen);
+    document.getElementById('v2MigSrcTrigger').classList.toggle('open', v2MigSrcOpen);
+    if (v2MigSrcOpen) renderV2MigOptions('src');
+  } else {
+    v2MigDstOpen = !v2MigDstOpen;
+    document.getElementById('v2MigDstDropdown').classList.toggle('open', v2MigDstOpen);
+    document.getElementById('v2MigDstTrigger').classList.toggle('open', v2MigDstOpen);
+    if (v2MigDstOpen) renderV2MigOptions('dst');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (v2MigSrcOpen && !e.target.closest('#v2MigSrcWrap')) {
+    v2MigSrcOpen = false;
+    document.getElementById('v2MigSrcDropdown').classList.remove('open');
+    document.getElementById('v2MigSrcTrigger').classList.remove('open');
+  }
+  if (v2MigDstOpen && !e.target.closest('#v2MigDstWrap')) {
+    v2MigDstOpen = false;
+    document.getElementById('v2MigDstDropdown').classList.remove('open');
+    document.getElementById('v2MigDstTrigger').classList.remove('open');
+  }
+});
+
+function selectV2MigWs(which, key) {
+  const label = MIG_WORKSPACES.find(w => w.key === key).label;
+  if (which === 'src') {
+    v2MigSrc = key;
+    document.getElementById('v2MigSrcDisplay').textContent = label;
+    v2MigSrcOpen = false;
+    document.getElementById('v2MigSrcDropdown').classList.remove('open');
+    document.getElementById('v2MigSrcTrigger').classList.remove('open');
+  } else {
+    v2MigDst = key;
+    document.getElementById('v2MigDstDisplay').textContent = label;
+    v2MigDstOpen = false;
+    document.getElementById('v2MigDstDropdown').classList.remove('open');
+    document.getElementById('v2MigDstTrigger').classList.remove('open');
+  }
+}
+
+async function runV2Migration() {
+  if (v2MigSrc === v2MigDst) { showDialog('源和目标不能相同'); return; }
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === v2MigSrc).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === v2MigDst).label;
+  const overwrite = document.getElementById('chkMigV2Overwrite').checked;
+  const overwriteWarn = overwrite ? '\n\n⚠️ 覆盖模式：将先删除目标库的全部 V2 模型与条目！' : '';
+
+  if (!await showDialog(`确定将 [V2 语义模型] 从「${srcLabel}」迁移到「${dstLabel}」？${overwriteWarn}`, {type:'confirm'})) return;
+
+  const btn = document.getElementById('btnMigrateV2');
+  const msg = document.getElementById('migrateV2Msg');
+  const resultDiv = document.getElementById('migrateV2Result');
+  btn.disabled = true;
+  msg.textContent = '迁移中…';
+  resultDiv.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/migrate-v2', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: v2MigSrc, target: v2MigDst, overwrite: overwrite }),
+    });
+    const d = await res.json();
+    const line = d.ok
+      ? `✓ V2语义模型: 迁移 ${d.models_count} 个模型, ${d.entries_count} 条条目${d.deleted_models ? ` (已清空旧数据: ${d.deleted_models}模型/${d.deleted_entries}条目)` : ''}`
+      : `✗ V2语义模型: ${d.msg}`;
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem">
+        <div style="font-weight:500;margin-bottom:10px;color:var(--purple)">迁移结果 (${srcLabel} → ${dstLabel})</div>
+        <div style="padding:4px 0;${line.startsWith('✗') ? 'color:var(--clay)' : ''}">${escHtml(line)}</div>
+      </div>`;
+    btn.disabled = false;
+  } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); btn.disabled = false; }
+}
+
+
+// ==================== V2 语义模型差异对比 ====================
+let v2DiffA = 'remote', v2DiffB = 'portal';
+let v2DiffAOpen = false, v2DiffBOpen = false;
+
+function renderV2DiffOptions(which) {
+  const container = document.getElementById(which === 'a' ? 'v2DiffAOptions' : 'v2DiffBOptions');
+  const current = which === 'a' ? v2DiffA : v2DiffB;
+  container.innerHTML = MIG_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === current ? ' selected' : ''}" onclick="selectV2DiffWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleV2DiffDropdown(which) {
+  if (which === 'a') {
+    v2DiffAOpen = !v2DiffAOpen;
+    document.getElementById('v2DiffADropdown').classList.toggle('open', v2DiffAOpen);
+    document.getElementById('v2DiffATrigger').classList.toggle('open', v2DiffAOpen);
+    if (v2DiffAOpen) renderV2DiffOptions('a');
+  } else {
+    v2DiffBOpen = !v2DiffBOpen;
+    document.getElementById('v2DiffBDropdown').classList.toggle('open', v2DiffBOpen);
+    document.getElementById('v2DiffBTrigger').classList.toggle('open', v2DiffBOpen);
+    if (v2DiffBOpen) renderV2DiffOptions('b');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (v2DiffAOpen && !e.target.closest('#v2DiffAWrap')) {
+    v2DiffAOpen = false;
+    document.getElementById('v2DiffADropdown').classList.remove('open');
+    document.getElementById('v2DiffATrigger').classList.remove('open');
+  }
+  if (v2DiffBOpen && !e.target.closest('#v2DiffBWrap')) {
+    v2DiffBOpen = false;
+    document.getElementById('v2DiffBDropdown').classList.remove('open');
+    document.getElementById('v2DiffBTrigger').classList.remove('open');
+  }
+});
+
+function selectV2DiffWs(which, key) {
+  const label = MIG_WORKSPACES.find(w => w.key === key).label;
+  if (which === 'a') {
+    v2DiffA = key;
+    document.getElementById('v2DiffADisplay').textContent = label;
+    v2DiffAOpen = false;
+    document.getElementById('v2DiffADropdown').classList.remove('open');
+    document.getElementById('v2DiffATrigger').classList.remove('open');
+  } else {
+    v2DiffB = key;
+    document.getElementById('v2DiffBDisplay').textContent = label;
+    v2DiffBOpen = false;
+    document.getElementById('v2DiffBDropdown').classList.remove('open');
+    document.getElementById('v2DiffBTrigger').classList.remove('open');
+  }
+}
+
+// 当前展示的对比结果，单点同步成功后再次刷新使用
+let v2DiffSnapshot = null;
+
+function v2EscArg(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+
+function v2RenderDiffBox(label, content) {
+  const safe = escHtml(content == null ? '' : String(content));
+  return `<div style="margin-bottom:6px">
+    <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px">${label}</div>
+    <pre style="margin:0;background:var(--bg-deep);border:1px solid var(--border-light);border-radius:4px;padding:8px;font-size:0.72rem;font-family:var(--font-mono);max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-all">${safe || '<span style=\"color:var(--muted)\">(空)</span>'}</pre>
+  </div>`;
+}
+
+function v2DirectionButtons(srcKey, dstKey, srcLabel, dstLabel, onclickFn) {
+  // 两个方向：A→B 和 B→A
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+    <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="${onclickFn}('${srcKey}','${dstKey}')">以 ${escHtml(srcLabel)} 为准 → ${escHtml(dstLabel)}</button>
+    <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="${onclickFn}('${dstKey}','${srcKey}')">${escHtml(dstLabel)} ← 以 ${escHtml(dstLabel)} 为准</button>
+  </div>`;
+}
+
+async function runV2Compare() {
+  if (v2DiffA === v2DiffB) { showDialog('两个工作区不能相同'); return; }
+  const msg = document.getElementById('v2DiffMsg');
+  const resultDiv = document.getElementById('v2DiffResult');
+  msg.textContent = '对比中…';
+  resultDiv.style.display = 'none';
+  try {
+    const res = await fetch('/api/compare-v2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a: v2DiffA, b: v2DiffB }),
+    });
+    const d = await res.json();
+    if (!d.ok) { msg.textContent = ''; showDialog('对比失败: ' + d.msg); return; }
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+    v2DiffSnapshot = d;
+    renderV2DiffResult();
+  } catch(e) { msg.textContent = ''; showDialog('对比失败: ' + e.message); }
+}
+
+function renderV2DiffResult() {
+  const d = v2DiffSnapshot;
+  if (!d) return;
+  const resultDiv = document.getElementById('v2DiffResult');
+  const aL = escHtml(d.a_label), bL = escHtml(d.b_label);
+  const aKey = d.a_key, bKey = d.b_key;
+  const bothTotal = (d.same_count || 0) + d.diff.length;
+  let html = `<div style="font-size:0.82rem;margin-bottom:14px;display:flex;gap:20px;flex-wrap:wrap">
+    <span><b style="color:var(--purple)">${aL}</b>: ${d.a_total} 个模型</span>
+    <span><b style="color:var(--clay)">${bL}</b>: ${d.b_total} 个模型</span>
+    <span>共同: ${bothTotal} 个（一致 ${d.same_count || 0}，有差异 ${d.diff.length}）</span>
+  </div>`;
+
+  // 仅在 A
+  if (d.only_a.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--purple);margin-bottom:6px">仅在 ${aL} (${d.only_a.length})</div>`;
+    d.only_a.forEach(m => {
+      const nameEsc = v2EscArg(m.name);
+      html += `<div style="padding:8px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-family:var(--font-mono);font-weight:500">${escHtml(m.name)} <span style="color:var(--muted);font-weight:400">#${m.id} · ${m.entries_count}条</span></span>
+        </div>
+        ${m.description ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:4px 0 0 0">${escHtml(m.description)}</div>` : ''}
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px">说明：单点同步只支持两边都已存在的模型；这条整模型缺失，请用上方"跨工作区迁移"。</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // 仅在 B
+  if (d.only_b.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--clay);margin-bottom:6px">仅在 ${bL} (${d.only_b.length})</div>`;
+    d.only_b.forEach(m => {
+      html += `<div style="padding:8px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+        <div><span style="font-family:var(--font-mono);font-weight:500">${escHtml(m.name)} <span style="color:var(--muted);font-weight:400">#${m.id} · ${m.entries_count}条</span></span></div>
+        ${m.description ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:4px 0 0 0">${escHtml(m.description)}</div>` : ''}
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px">说明：单点同步只支持两边都已存在的模型；这条整模型缺失，请用上方"跨工作区迁移"。</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // 内容有差异
+  if (d.diff.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--warm);margin-bottom:6px">内容有差异 (${d.diff.length})</div>`;
+    d.diff.forEach((df, dfIdx) => {
+      const nameEsc = v2EscArg(df.name);
+      html += `<div style="padding:14px 0;border-bottom:1px solid var(--border-light)">
+        <div style="font-size:0.85rem;font-family:var(--font-mono);font-weight:600;margin-bottom:8px">${escHtml(df.name)} <span style="color:var(--muted);font-weight:400">${aL} #${df.a_id} (${df.a_entries}条) / ${bL} #${df.b_id} (${df.b_entries}条)</span></div>`;
+
+      // 模型 meta 差异
+      const diffs = df.diffs || {};
+      if (diffs.description) {
+        html += `<div style="margin:8px 0 8px 12px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">📝 描述不同</div>
+          ${v2RenderDiffBox(aL, diffs.description.a)}
+          ${v2RenderDiffBox(bL, diffs.description.b)}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2ModelMeta('${aKey}','${bKey}','${nameEsc}',['description'])">以 ${aL} 为准 → ${bL}</button>
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2ModelMeta('${bKey}','${aKey}','${nameEsc}',['description'])">${aL} ← 以 ${bL} 为准</button>
           </div>
-          <div>将迁移 <b>${d.kb_count}</b> 个知识库，共 <b>${d.nk_count}</b> 条知识条目</div>
-          ${detailHtml}
         </div>`;
-    } else {
-      resultDiv.innerHTML = `
-        <div style="background:var(--green-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem;color:var(--green)">
-          ✅ 迁移完成：${d.kb_count} 个知识库，${d.nk_count} 条知识条目
-          ${d.nk_errors && d.nk_errors.length ? `<br><span style="color:var(--red)">⚠ ${d.nk_errors.length} 条写入失败</span>` : ''}
+      }
+      if (diffs.tables) {
+        const tablesA = parseTableNames(diffs.tables.a);
+        const tablesB = parseTableNames(diffs.tables.b);
+        const onlyInA = tablesA.filter(t => !tablesB.includes(t));
+        const onlyInB = tablesB.filter(t => !tablesA.includes(t));
+        const chip = (n, color) => `<span style="background:${color}-light, var(--bg-deep);background:var(--${color}-glow, var(--bg-deep));color:var(--${color});padding:2px 8px;border-radius:10px;font-size:0.68rem;font-family:var(--font-mono);margin:2px">${escHtml(n)}</span>`;
+        html += `<div style="margin:8px 0 8px 12px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">📊 关联表不同</div>
+          <div style="font-size:0.72rem;margin-bottom:4px"><b style="color:var(--purple)">${aL}</b> (${tablesA.length}): ${tablesA.length ? tablesA.map(t => chip(t, 'purple')).join('') : '<span style="color:var(--muted)">(无)</span>'}</div>
+          <div style="font-size:0.72rem;margin-bottom:4px"><b style="color:var(--clay)">${bL}</b> (${tablesB.length}): ${tablesB.length ? tablesB.map(t => chip(t, 'clay')).join('') : '<span style="color:var(--muted)">(无)</span>'}</div>
+          ${onlyInA.length ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:2px">仅 ${aL}: ${onlyInA.map(escHtml).join(', ')}</div>` : ''}
+          ${onlyInB.length ? `<div style="font-size:0.7rem;color:var(--muted)">仅 ${bL}: ${onlyInB.map(escHtml).join(', ')}</div>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2ModelMeta('${aKey}','${bKey}','${nameEsc}',['tables'])">以 ${aL} 为准 → ${bL}</button>
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2ModelMeta('${bKey}','${aKey}','${nameEsc}',['tables'])">${aL} ← 以 ${bL} 为准</button>
+          </div>
         </div>`;
-    }
-  } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); }
-  btn.disabled = false;
+      }
+
+      // 条目差异
+      const ed = df.entry_diffs || [];
+      if (ed.length) {
+        html += `<div style="margin:8px 0 0 12px">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">🔧 条目差异 (${ed.length})</div>`;
+        ed.forEach(id => {
+          const kindEsc = v2EscArg(id.kind);
+          const keyEsc = v2EscArg(id.key);
+          const head = `<span style="font-family:var(--font-mono);font-size:0.78rem"><span style="color:var(--muted)">[${escHtml(id.kind)}]</span> <b>${escHtml(id.key)}</b></span>`;
+          let badge = '';
+          let body = '';
+          let buttons = '';
+          if (id.status === 'only_a') {
+            badge = `<span style="background:var(--accent-glow);color:var(--purple);padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">仅 ${aL}</span>`;
+            body = v2RenderDiffBox(`${aL} · spec`, id.a_spec) + (id.a_tables && id.a_tables !== '[]' && id.a_tables !== 'null' ? v2RenderDiffBox(`${aL} · tables`, id.a_tables) : '');
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${aKey}','${bKey}','${nameEsc}','${kindEsc}','${keyEsc}')">复制 ${aL} → ${bL} (新增)</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${bKey}','${aKey}','${nameEsc}','${kindEsc}','${keyEsc}')">${aL} ← 以 ${bL} 为准 (从 ${aL} 删除)</button>`;
+          } else if (id.status === 'only_b') {
+            badge = `<span style="background:var(--clay-light);color:var(--clay);padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">仅 ${bL}</span>`;
+            body = v2RenderDiffBox(`${bL} · spec`, id.b_spec) + (id.b_tables && id.b_tables !== '[]' && id.b_tables !== 'null' ? v2RenderDiffBox(`${bL} · tables`, id.b_tables) : '');
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${aKey}','${bKey}','${nameEsc}','${kindEsc}','${keyEsc}')">以 ${aL} 为准 → ${bL} (从 ${bL} 删除)</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${bKey}','${aKey}','${nameEsc}','${kindEsc}','${keyEsc}')">复制 ${bL} → ${aL} (新增)</button>`;
+          } else {
+            badge = `<span style="background:#fff3cd;color:#856404;padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">内容不同</span>`;
+            const subs = [];
+            if (id.spec_diff) subs.push(`spec`);
+            if (id.tables_diff) subs.push(`tables`);
+            const subInfo = subs.length ? `<div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px">差异字段: ${subs.join(', ')}</div>` : '';
+            body = subInfo
+                 + (id.spec_diff ? v2RenderDiffBox(`${aL} · spec`, id.a_spec) + v2RenderDiffBox(`${bL} · spec`, id.b_spec) : '')
+                 + (id.tables_diff ? v2RenderDiffBox(`${aL} · tables`, id.a_tables) + v2RenderDiffBox(`${bL} · tables`, id.b_tables) : '');
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${aKey}','${bKey}','${nameEsc}','${kindEsc}','${keyEsc}')">以 ${aL} 为准 → ${bL}</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${bKey}','${aKey}','${nameEsc}','${kindEsc}','${keyEsc}')">${aL} ← 以 ${bL} 为准</button>`;
+          }
+          html += `<div style="padding:8px;margin-bottom:6px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+            <div style="margin-bottom:6px">${head}${badge}</div>
+            ${body}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${buttons}</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+    });
+    html += '</div>';
+  }
+
+  if (!d.only_a.length && !d.only_b.length && !d.diff.length) {
+    html += `<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.85rem">两个工作区的 V2 语义模型完全一致 ✓</div>`;
+  }
+
+  resultDiv.innerHTML = html;
+}
+
+async function syncV2ModelMeta(srcKey, dstKey, modelName, fields) {
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === srcKey).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === dstKey).label;
+  const fieldNames = fields.map(f => f === 'description' ? '描述' : (f === 'tables' ? '关联表' : f)).join('、');
+  if (!await showDialog(`确定将模型「${modelName}」的【${fieldNames}】从「${srcLabel}」覆盖到「${dstLabel}」？`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-v2-model-meta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: srcKey, target: dstKey, model_name: modelName, fields }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    await runV2Compare();
+  } catch(e) { showDialog('同步失败: ' + e.message); }
+}
+
+async function syncV2Entry(srcKey, dstKey, modelName, kind, keyName) {
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === srcKey).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === dstKey).label;
+  if (!await showDialog(`确定将模型「${modelName}」的条目 [${kind}] ${keyName} 从「${srcLabel}」同步到「${dstLabel}」？\n\n（src 有则 upsert，src 无则 dst 删除）`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-v2-entry', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: srcKey, target: dstKey, model_name: modelName, kind, key_name: keyName }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    await runV2Compare();
+  } catch(e) { showDialog('同步失败: ' + e.message); }
 }
 
 

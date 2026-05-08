@@ -22,13 +22,6 @@ DB_CONFIGS = {
         password="moi_2d76c2c1a5eb95b160e10e0b1dc47109ded45fbc9ad7641d3adcbd07ce09da78",
         database="moi", charset="utf8mb4", autocommit=True,
     ),
-    "new_dev": dict(
-        host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
-        port=6001,
-        user="ws_0a52bbd0:u_fc5a80864a514c67b565d520aeb5f9d1",
-        password="moi_6b1eaec993750d88fe87002e32380a81b25594bc084564379c92c5f126dd5eab",
-        database="moi", charset="utf8mb4", autocommit=True,
-    ),
     "portal": dict(
         host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
         port=6001,
@@ -708,14 +701,12 @@ def delete_knowledge_base(target: str, kb_id: int) -> dict:
 WORKSPACE_LABELS = {
     "local": "Local (Docker)",
     "remote": "问数Dev",
-    "new_dev": "新Dev",
     "portal": "AI Portal",
 }
 
 WORKSPACE_INFO = {
     "local": {"account": "dump", "host": "127.0.0.1:16001", "database": "moi", "workspace_id": "-", "workspace_name": "local-docker"},
     "remote": {"account": "ws_bf2d347f", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "ws_bf2d347f", "workspace_name": "moi_core_system"},
-    "new_dev": {"account": "ws_0a52bbd0", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "ws_0a52bbd0", "workspace_name": "new-dev"},
     "portal": {"account": "ws_bfb9ca8d", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "6a0d513b-9b28-5c5c-0e5f-145427bde36c", "workspace_name": "qa-manual-ws-20260330185108-x9f3k2"},
 }
 
@@ -890,7 +881,7 @@ def get_semantic_model_list(target: str) -> dict:
         with conn.cursor(pymysql.cursors.DictCursor) as cur:
             cur.execute(
                 "SELECT sm.id, sm.name, sm.description, "
-                "CAST(sm.`tables` AS CHAR) AS tables_json, "
+                "CAST(sm.`tables` AS TEXT) AS tables_json, "
                 "sm.created_by, sm.updated_by, "
                 "sm.created_at, sm.updated_at, "
                 "IFNULL(cnt.c, 0) AS entry_count "
@@ -914,7 +905,7 @@ def get_semantic_model_detail(target: str, model_id: int) -> dict:
         with conn.cursor(pymysql.cursors.DictCursor) as cur:
             cur.execute(
                 "SELECT id, name, description, "
-                "CAST(`tables` AS CHAR) AS tables_json, "
+                "CAST(`tables` AS TEXT) AS tables_json, "
                 "created_by, updated_by, created_at, updated_at "
                 "FROM moi.semantic_models WHERE id = %s",
                 (model_id,)
@@ -926,8 +917,8 @@ def get_semantic_model_detail(target: str, model_id: int) -> dict:
         with conn.cursor(pymysql.cursors.DictCursor) as cur:
             cur.execute(
                 "SELECT id, model_id, kind, key_name, "
-                "CAST(`tables` AS CHAR) AS tables_json, "
-                "CAST(spec AS CHAR) AS spec_json, "
+                "CAST(`tables` AS TEXT) AS tables_json, "
+                "CAST(spec AS TEXT) AS spec_json, "
                 "created_by, updated_by, created_at, updated_at "
                 "FROM moi.semantic_entries WHERE model_id = %s "
                 "ORDER BY kind, key_name",
@@ -1094,13 +1085,27 @@ def delete_semantic_entry(target: str, entry_id: int) -> dict:
 # ==================== 问数过滤条件配置 ====================
 
 def _get_jst_conn(target: str):
-    """获取 jst 数据库连接（过滤规则存储在 jst 库）"""
-    cfg = DB_CONFIGS.get(target)
-    if not cfg:
-        raise ValueError(f"未知 target: {target}")
-    jst_cfg = dict(cfg)
-    jst_cfg["database"] = "jst"
-    return pymysql.connect(**jst_cfg)
+    """获取配置管理（过滤规则 + 系统开关）的数据库连接。
+    AI Portal 的配置管理库 jst_qa 实际位于 remote 工作区，需借用 remote 凭证。
+    """
+    if target == "portal":
+        cfg = DB_CONFIGS.get("remote")
+        if not cfg:
+            raise ValueError("缺少 remote 配置，无法访问 AI Portal 的 jst_qa")
+        jst_cfg = dict(cfg)
+        jst_cfg["database"] = "jst_qa"
+    else:
+        cfg = DB_CONFIGS.get(target)
+        if not cfg:
+            raise ValueError(f"未知 target: {target}")
+        jst_cfg = dict(cfg)
+        jst_cfg["database"] = "jst"
+    try:
+        return pymysql.connect(**jst_cfg)
+    except Exception as e:
+        if "1049" in str(e) or "Unknown database" in str(e):
+            raise ValueError(f"工作区 [{WORKSPACE_LABELS.get(target, target)}] 没有配置管理数据库，该功能不可用")
+        raise
 
 
 def get_filter_rules(target: str) -> dict:
@@ -1114,7 +1119,7 @@ def get_filter_rules(target: str) -> dict:
             cur.execute(
                 "SELECT id, config_key, config_value, table_name, note, "
                 "created_at, updated_at "
-                "FROM jst.fin_explore_filter_rule_set ORDER BY config_key, table_name"
+                "FROM fin_explore_filter_rule_set ORDER BY config_key, table_name"
             )
             rule_sets = cur.fetchall()
 
@@ -1122,7 +1127,7 @@ def get_filter_rules(target: str) -> dict:
                 "SELECT id, rule_set_id, field, op, literal_value, "
                 "CAST(literal_values AS CHAR) AS literal_values, "
                 "value_source, order_idx "
-                "FROM jst.fin_explore_filter_rule ORDER BY rule_set_id, order_idx"
+                "FROM fin_explore_filter_rule ORDER BY rule_set_id, order_idx"
             )
             rules = cur.fetchall()
 
@@ -1204,7 +1209,7 @@ def save_filter_rule(target: str, data: dict) -> dict:
             if rule_set_id:
                 # 更新 rule_set
                 cur.execute(
-                    "UPDATE jst.fin_explore_filter_rule_set "
+                    "UPDATE fin_explore_filter_rule_set "
                     "SET config_key=%s, config_value=%s, table_name=%s, note=%s "
                     "WHERE id=%s",
                     (data["config_key"], data["config_value"],
@@ -1213,13 +1218,13 @@ def save_filter_rule(target: str, data: dict) -> dict:
                 )
                 # 删除旧 rules 再重建
                 cur.execute(
-                    "DELETE FROM jst.fin_explore_filter_rule WHERE rule_set_id=%s",
+                    "DELETE FROM fin_explore_filter_rule WHERE rule_set_id=%s",
                     (rule_set_id,),
                 )
             else:
                 # 新增 rule_set
                 cur.execute(
-                    "INSERT INTO jst.fin_explore_filter_rule_set "
+                    "INSERT INTO fin_explore_filter_rule_set "
                     "(config_key, config_value, table_name, note) "
                     "VALUES (%s, %s, %s, %s)",
                     (data["config_key"], data["config_value"],
@@ -1235,7 +1240,7 @@ def save_filter_rule(target: str, data: dict) -> dict:
                 if lit_vals and isinstance(lit_vals, list):
                     lit_vals = json.dumps(lit_vals, ensure_ascii=False)
                 cur.execute(
-                    "INSERT INTO jst.fin_explore_filter_rule "
+                    "INSERT INTO fin_explore_filter_rule "
                     "(rule_set_id, field, op, literal_value, literal_values, "
                     "value_source, order_idx) "
                     "VALUES (%s, %s, %s, %s, %s, %s, 0)",
@@ -1256,11 +1261,11 @@ def delete_filter_rule(target: str, rule_set_id: int) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM jst.fin_explore_filter_rule WHERE rule_set_id=%s",
+                "DELETE FROM fin_explore_filter_rule WHERE rule_set_id=%s",
                 (rule_set_id,),
             )
             cur.execute(
-                "DELETE FROM jst.fin_explore_filter_rule_set WHERE id=%s",
+                "DELETE FROM fin_explore_filter_rule_set WHERE id=%s",
                 (rule_set_id,),
             )
             conn.commit()
@@ -1312,7 +1317,7 @@ def get_system_config(target: str, config_name: str) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT config_value FROM jst.system_config WHERE config_name = %s",
+                "SELECT config_value FROM system_config WHERE config_name = %s",
                 (config_name,),
             )
             row = cur.fetchone()
@@ -1331,7 +1336,7 @@ def set_system_config(target: str, config_name: str, config_value: str) -> dict:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE jst.system_config SET config_value = %s WHERE config_name = %s",
+                "UPDATE system_config SET config_value = %s WHERE config_name = %s",
                 (config_value, config_name),
             )
             if cur.rowcount == 0:
@@ -1341,3 +1346,411 @@ def set_system_config(target: str, config_name: str, config_value: str) -> dict:
         return {"ok": False, "msg": str(e)}
     finally:
         conn.close()
+
+
+def compare_semantic_models(ws_a: str, ws_b: str) -> dict:
+    """对比两个工作区的 V2 语义模型，按 name 匹配，并逐条对比 entries"""
+    label_a = WORKSPACE_LABELS.get(ws_a, ws_a)
+    label_b = WORKSPACE_LABELS.get(ws_b, ws_b)
+    conn_a = conn_b = None
+    try:
+        conn_a = _get_conn(ws_a)
+    except Exception as e:
+        return {"ok": False, "msg": f"连接工作区 [{label_a}] 失败: {e}"}
+    try:
+        conn_b = _get_conn(ws_b)
+    except Exception as e:
+        conn_a.close()
+        return {"ok": False, "msg": f"连接工作区 [{label_b}] 失败: {e}"}
+    try:
+        def _fetch_models(conn):
+            with conn.cursor(pymysql.cursors.DictCursor) as cur:
+                cur.execute(
+                    "SELECT id, name, description, "
+                    "CAST(`tables` AS TEXT) AS tables_json, "
+                    "CAST(files AS TEXT) AS files_json, "
+                    "created_at, updated_at "
+                    "FROM moi.semantic_models ORDER BY id"
+                )
+                rows = cur.fetchall()
+            return _serialize(rows)
+
+        def _fetch_entries(conn, model_ids):
+            if not model_ids:
+                return {}
+            with conn.cursor(pymysql.cursors.DictCursor) as cur:
+                placeholders = ",".join(["%s"] * len(model_ids))
+                cur.execute(
+                    f"SELECT model_id, kind, key_name, "
+                    f"CAST(`tables` AS TEXT) AS tables_json, "
+                    f"CAST(spec AS TEXT) AS spec_json "
+                    f"FROM moi.semantic_entries WHERE model_id IN ({placeholders}) "
+                    f"ORDER BY model_id, kind, key_name",
+                    model_ids
+                )
+                rows = cur.fetchall()
+            result = {mid: [] for mid in model_ids}
+            for r in rows:
+                result[r["model_id"]].append(r)
+            return result
+
+        rows_a = _fetch_models(conn_a)
+        rows_b = _fetch_models(conn_b)
+
+        map_a = {r["name"]: r for r in rows_a}
+        map_b = {r["name"]: r for r in rows_b}
+        all_names = sorted(set(map_a.keys()) | set(map_b.keys()))
+
+        both_names = [n for n in all_names if n in map_a and n in map_b]
+        both_a_ids = [map_a[n]["id"] for n in both_names]
+        both_b_ids = [map_b[n]["id"] for n in both_names]
+        entries_a = _fetch_entries(conn_a, both_a_ids)
+        entries_b = _fetch_entries(conn_b, both_b_ids)
+
+        only_a = []
+        only_b = []
+        both = []
+        diff = []
+
+        for name in all_names:
+            in_a = name in map_a
+            in_b = name in map_b
+            if in_a and not in_b:
+                ma = map_a[name]
+                ma["entries_count"] = len(_fetch_entries(conn_a, [ma["id"]]).get(ma["id"], []))
+                only_a.append(ma)
+            elif in_b and not in_a:
+                mb = map_b[name]
+                mb["entries_count"] = len(_fetch_entries(conn_b, [mb["id"]]).get(mb["id"], []))
+                only_b.append(mb)
+            else:
+                ma, mb = map_a[name], map_b[name]
+                ea = entries_a.get(ma["id"], [])
+                eb = entries_b.get(mb["id"], [])
+                ma["entries_count"] = len(ea)
+                mb["entries_count"] = len(eb)
+                both.append({"name": name, "a": ma, "b": mb})
+
+                def entry_key(e):
+                    return (e.get("kind") or "", e.get("key_name") or "")
+
+                def entry_content(e):
+                    return (e.get("tables_json") or "", e.get("spec_json") or "")
+
+                a_map = {entry_key(i): i for i in ea}
+                b_map = {entry_key(i): i for i in eb}
+                all_keys = sorted(set(a_map.keys()) | set(b_map.keys()))
+
+                entry_diffs = []
+                for key in all_keys:
+                    ia = a_map.get(key)
+                    ib = b_map.get(key)
+                    if ia and not ib:
+                        entry_diffs.append({
+                            "kind": key[0], "key": key[1],
+                            "status": "only_a",
+                            "a_spec": ia.get("spec_json") or "",
+                            "a_tables": ia.get("tables_json") or "",
+                        })
+                    elif ib and not ia:
+                        entry_diffs.append({
+                            "kind": key[0], "key": key[1],
+                            "status": "only_b",
+                            "b_spec": ib.get("spec_json") or "",
+                            "b_tables": ib.get("tables_json") or "",
+                        })
+                    elif entry_content(ia) != entry_content(ib):
+                        entry_diffs.append({
+                            "kind": key[0], "key": key[1],
+                            "status": "different",
+                            "a_spec": ia.get("spec_json") or "",
+                            "b_spec": ib.get("spec_json") or "",
+                            "a_tables": ia.get("tables_json") or "",
+                            "b_tables": ib.get("tables_json") or "",
+                            "spec_diff": (ia.get("spec_json") or "") != (ib.get("spec_json") or ""),
+                            "tables_diff": (ia.get("tables_json") or "") != (ib.get("tables_json") or ""),
+                        })
+
+                diffs_detail = {}
+                if (ma.get("description") or "") != (mb.get("description") or ""):
+                    diffs_detail["description"] = {"a": ma.get("description") or "", "b": mb.get("description") or ""}
+                if ma.get("tables_json") != mb.get("tables_json"):
+                    diffs_detail["tables"] = {"a": ma.get("tables_json"), "b": mb.get("tables_json")}
+
+                if entry_diffs or diffs_detail:
+                    diff.append({
+                        "name": name,
+                        "a_id": ma["id"],
+                        "b_id": mb["id"],
+                        "a_entries": ma["entries_count"],
+                        "b_entries": mb["entries_count"],
+                        "diffs": diffs_detail,
+                        "entry_diffs": entry_diffs,
+                    })
+
+        return {
+            "ok": True,
+            "a_key": ws_a, "a_label": label_a,
+            "a_info": WORKSPACE_INFO.get(ws_a, {}),
+            "b_key": ws_b, "b_label": label_b,
+            "b_info": WORKSPACE_INFO.get(ws_b, {}),
+            "a_total": len(rows_a),
+            "b_total": len(rows_b),
+            "only_a": only_a,
+            "only_b": only_b,
+            "both_count": len(both),
+            "same_count": len(both) - len(diff),
+            "diff": diff,
+        }
+    finally:
+        if conn_a:
+            conn_a.close()
+        if conn_b:
+            conn_b.close()
+
+
+def apply_v2_model_meta(source: str, target: str, model_name: str, fields: list) -> dict:
+    """把 source 工作区的某个语义模型的指定 meta 字段（description / tables）覆盖到 target。
+    模型按 name 匹配。
+    """
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    fields = [f for f in (fields or []) if f in {"description", "tables"}]
+    if not fields:
+        return {"ok": False, "msg": "未指定要同步的字段"}
+    src_conn = dst_conn = None
+    try:
+        src_conn = _get_conn(source)
+        dst_conn = _get_conn(target)
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT description, CAST(`tables` AS TEXT) AS tables_txt "
+                "FROM moi.semantic_models WHERE name=%s",
+                (model_name,)
+            )
+            src_m = cur.fetchone()
+            if not src_m:
+                return {"ok": False, "msg": f"源 [{src_label}] 没有模型 [{model_name}]"}
+        sets = []
+        vals = []
+        if "description" in fields:
+            sets.append("description=%s")
+            vals.append(src_m["description"])
+        if "tables" in fields:
+            sets.append("`tables`=%s")
+            vals.append(src_m["tables_txt"])
+        vals.append(model_name)
+        with dst_conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE moi.semantic_models SET {', '.join(sets)} WHERE name=%s",
+                vals
+            )
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"目标 [{dst_label}] 没有模型 [{model_name}]"}
+        return {"ok": True, "fields": fields, "src": src_label, "dst": dst_label}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        if src_conn:
+            src_conn.close()
+        if dst_conn:
+            dst_conn.close()
+
+
+def apply_v2_entry_to_target(source: str, target: str, model_name: str, kind: str, key_name: str) -> dict:
+    """把 source 中 (model_name, kind, key_name) 这条 entry 同步到 target。
+    - source 有、target 没有 → 在 target 插入
+    - source 有、target 也有 → 在 target 更新
+    - source 没有、target 有 → 在 target 删除
+    - 都没有 → noop
+    """
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    src_conn = dst_conn = None
+    try:
+        src_conn = _get_conn(source)
+        dst_conn = _get_conn(target)
+
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute("SELECT id FROM moi.semantic_models WHERE name=%s", (model_name,))
+            sm = cur.fetchone()
+            src_entry = None
+            if sm:
+                cur.execute(
+                    "SELECT kind, key_name, "
+                    "CAST(`tables` AS TEXT) AS tables_txt, "
+                    "CAST(spec AS TEXT) AS spec_txt, "
+                    "created_by, updated_by, created_at, updated_at "
+                    "FROM moi.semantic_entries WHERE model_id=%s AND kind=%s AND key_name=%s",
+                    (sm["id"], kind, key_name)
+                )
+                src_entry = cur.fetchone()
+
+        with dst_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute("SELECT id FROM moi.semantic_models WHERE name=%s", (model_name,))
+            dm = cur.fetchone()
+            if not dm:
+                return {"ok": False, "msg": f"目标 [{dst_label}] 没有模型 [{model_name}]"}
+            cur.execute(
+                "SELECT id FROM moi.semantic_entries WHERE model_id=%s AND kind=%s AND key_name=%s",
+                (dm["id"], kind, key_name)
+            )
+            dst_entry = cur.fetchone()
+
+        with dst_conn.cursor() as cur:
+            if src_entry and dst_entry:
+                cur.execute(
+                    "UPDATE moi.semantic_entries SET `tables`=%s, spec=%s, updated_by=%s, updated_at=%s "
+                    "WHERE id=%s",
+                    (src_entry["tables_txt"], src_entry["spec_txt"],
+                     src_entry["updated_by"], src_entry["updated_at"], dst_entry["id"])
+                )
+                action = "updated"
+            elif src_entry and not dst_entry:
+                cur.execute(
+                    "INSERT INTO moi.semantic_entries "
+                    "(model_id, kind, key_name, `tables`, spec, "
+                    "created_by, updated_by, created_at, updated_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (dm["id"], kind, key_name,
+                     src_entry["tables_txt"], src_entry["spec_txt"],
+                     src_entry["created_by"], src_entry["updated_by"],
+                     src_entry["created_at"], src_entry["updated_at"])
+                )
+                action = "inserted"
+            elif not src_entry and dst_entry:
+                cur.execute("DELETE FROM moi.semantic_entries WHERE id=%s", (dst_entry["id"],))
+                action = "deleted"
+            else:
+                return {"ok": True, "action": "noop", "src": src_label, "dst": dst_label}
+        return {"ok": True, "action": action, "src": src_label, "dst": dst_label}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        if src_conn:
+            src_conn.close()
+        if dst_conn:
+            dst_conn.close()
+
+
+def migrate_semantic_models(source: str, target: str, overwrite: bool = False) -> dict:
+    """迁移V2语义模型（semantic_models + semantic_entries）"""
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    try:
+        src_conn = _get_conn(source)
+    except Exception as e:
+        return {"ok": False, "msg": f"连接源 [{src_label}] 失败: {e}"}
+    try:
+        dst_conn = _get_conn(target)
+    except Exception as e:
+        src_conn.close()
+        return {"ok": False, "msg": f"连接目标 [{dst_label}] 失败: {e}"}
+    try:
+        # 读取源
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, name, description, CAST(`tables` AS TEXT) AS tables_txt, "
+                "CAST(files AS TEXT) AS files_txt, table_set_hash, "
+                "created_by, updated_by, created_at, updated_at "
+                "FROM moi.semantic_models ORDER BY id"
+            )
+            models = cur.fetchall()
+            cur.execute(
+                "SELECT id, model_id, kind, key_name, "
+                "CAST(`tables` AS TEXT) AS tables_txt, "
+                "CAST(spec AS TEXT) AS spec_txt, "
+                "created_by, updated_by, created_at, updated_at "
+                "FROM moi.semantic_entries ORDER BY id"
+            )
+            entries = cur.fetchall()
+
+        # 覆盖模式
+        deleted_m = deleted_e = 0
+        if overwrite:
+            with dst_conn.cursor() as cur:
+                cur.execute("DELETE FROM moi.semantic_entries")
+                deleted_e = cur.rowcount
+                cur.execute("DELETE FROM moi.semantic_models")
+                deleted_m = cur.rowcount
+
+        # 写入
+        model_id_map = {}
+        for m in models:
+            with dst_conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO moi.semantic_models "
+                    "(name, description, `tables`, files, table_set_hash, "
+                    "created_by, updated_by, created_at, updated_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    (m['name'], m['description'], m['tables_txt'], m['files_txt'],
+                     m['table_set_hash'], m['created_by'], m['updated_by'],
+                     m['created_at'], m['updated_at'])
+                )
+                model_id_map[m['id']] = cur.lastrowid
+
+        e_ok = 0
+        for e in entries:
+            new_mid = model_id_map.get(e['model_id'])
+            if not new_mid:
+                continue
+            with dst_conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO moi.semantic_entries "
+                    "(model_id, kind, key_name, `tables`, spec, "
+                    "created_by, updated_by, created_at, updated_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    (new_mid, e['kind'], e['key_name'], e['tables_txt'],
+                     e['spec_txt'], e['created_by'], e['updated_by'],
+                     e['created_at'], e['updated_at'])
+                )
+                e_ok += 1
+
+        return {
+            "ok": True,
+            "models_count": len(model_id_map),
+            "entries_count": e_ok,
+            "deleted_models": deleted_m,
+            "deleted_entries": deleted_e,
+        }
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        src_conn.close()
+        dst_conn.close()
+
+
+def migrate_system_config(source: str, target: str) -> dict:
+    """迁移 jst.system_config 全表"""
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    try:
+        src_conn = _get_jst_conn(source)
+    except Exception as e:
+        return {"ok": False, "msg": f"连接源 [{src_label}] jst 失败: {e}"}
+    try:
+        dst_conn = _get_jst_conn(target)
+    except Exception as e:
+        src_conn.close()
+        return {"ok": False, "msg": f"连接目标 [{dst_label}] jst 失败: {e}"}
+    try:
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute("SELECT config_name, config_value FROM system_config")
+            rows = cur.fetchall()
+
+        updated = 0
+        for r in rows:
+            with dst_conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE system_config SET config_value = %s WHERE config_name = %s",
+                    (r['config_value'], r['config_name'])
+                )
+                if cur.rowcount > 0:
+                    updated += 1
+
+        return {"ok": True, "synced": updated, "total": len(rows)}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        src_conn.close()
+        dst_conn.close()

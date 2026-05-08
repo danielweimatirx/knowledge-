@@ -242,6 +242,56 @@ def api_compare_kb():
         return jsonify({"ok": False, "msg": f"对比失败: {e}"}), 500
 
 
+@app.route("/api/compare-v2", methods=["POST"])
+def api_compare_v2():
+    body = request.get_json(force=True) or {}
+    ws_a = body.get("a", "remote")
+    ws_b = body.get("b", "portal")
+    if ws_a == ws_b:
+        return jsonify({"ok": False, "msg": "两个工作区不能相同"}), 400
+    try:
+        return jsonify(db_service.compare_semantic_models(ws_a, ws_b))
+    except ValueError as e:
+        return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"对比失败: {e}"}), 500
+
+
+@app.route("/api/sync-v2-model-meta", methods=["POST"])
+def api_sync_v2_model_meta():
+    body = request.get_json(force=True) or {}
+    source = body.get("source")
+    target = body.get("target")
+    model_name = body.get("model_name")
+    fields = body.get("fields") or []
+    if not source or not target or not model_name or not fields:
+        return jsonify({"ok": False, "msg": "source/target/model_name/fields 必填"}), 400
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.apply_v2_model_meta(source, target, model_name, fields))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"同步失败: {e}"}), 500
+
+
+@app.route("/api/sync-v2-entry", methods=["POST"])
+def api_sync_v2_entry():
+    body = request.get_json(force=True) or {}
+    source = body.get("source")
+    target = body.get("target")
+    model_name = body.get("model_name")
+    kind = body.get("kind")
+    key_name = body.get("key_name")
+    if not source or not target or not model_name or kind is None or key_name is None:
+        return jsonify({"ok": False, "msg": "source/target/model_name/kind/key_name 必填"}), 400
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.apply_v2_entry_to_target(source, target, model_name, kind, key_name))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"同步失败: {e}"}), 500
+
+
 @app.route("/api/sync-kb", methods=["POST"])
 def api_sync_kb():
     body = request.get_json(force=True) or {}
@@ -274,6 +324,33 @@ def api_migrate_kb():
         return jsonify(result)
     except ValueError as e:
         return jsonify({"ok": False, "msg": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"迁移失败: {e}"}), 500
+
+
+@app.route("/api/migrate-v2", methods=["POST"])
+def api_migrate_v2():
+    body = request.get_json(force=True) or {}
+    source = body.get("source", "remote")
+    target = body.get("target", "portal")
+    overwrite = body.get("overwrite", False)
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.migrate_semantic_models(source, target, overwrite=overwrite))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"迁移失败: {e}"}), 500
+
+
+@app.route("/api/migrate-sys-config", methods=["POST"])
+def api_migrate_sys_config():
+    body = request.get_json(force=True) or {}
+    source = body.get("source", "remote")
+    target = body.get("target", "portal")
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.migrate_system_config(source, target))
     except Exception as e:
         return jsonify({"ok": False, "msg": f"迁移失败: {e}"}), 500
 

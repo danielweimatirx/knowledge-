@@ -72,6 +72,10 @@
   .kind-named_filter { background: var(--green-light); color: var(--green); }
   .kind-dimension { background: var(--blue-light); color: var(--blue); }
   .kind-column_preference { background: var(--purple-light); color: var(--purple); }
+  .kind-set_binding { background: rgba(74,122,154,0.15); color: #3a6a8a; }
+  .kind-set_policy { background: rgba(184,92,58,0.12); color: var(--clay); }
+  .kind-relationship { background: rgba(90,122,90,0.15); color: var(--accent); }
+  .kind-lookup_mapping { background: rgba(160,120,60,0.12); color: #8a6a2a; }
   .entry-key { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; }
   .entry-id { font-size: 0.68rem; color: var(--muted); margin-left: auto; }
   .entry-spec { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; background: var(--bg-deep); padding: 10px 14px; border-radius: 6px; margin-top: 8px; font-family: var(--font-mono); white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; }
@@ -141,10 +145,14 @@
     <div class="field">
       <label>类型 *</label>
       <select id="entryKind">
-        <option value="logic_text">logic_text (逻辑文本)</option>
-        <option value="named_filter">named_filter (命名过滤器)</option>
-        <option value="dimension">dimension (维度)</option>
-        <option value="column_preference">column_preference (列偏好)</option>
+        <option value="logic_text">逻辑文本 (logic_text)</option>
+        <option value="named_filter">命名过滤 (named_filter)</option>
+        <option value="dimension">维度 (dimension)</option>
+        <option value="column_preference">列偏好 (column_preference)</option>
+        <option value="set_binding">集合绑定 (set_binding)</option>
+        <option value="set_policy">集合策略 (set_policy)</option>
+        <option value="relationship">表关联 (relationship)</option>
+        <option value="lookup_mapping">查找映射 (lookup_mapping)</option>
       </select>
     </div>
     <div class="field">
@@ -302,8 +310,83 @@ function renderEntries() {
             ${stages.length ? `<span class="meta-tag">注入阶段: ${stages.join(', ')}</span>` : ''}
           </div>
         </div>`;
+    } else if (e.kind === 'set_binding') {
+      const src = spec.entity_source || {};
+      const rules = Array.isArray(spec.rules) ? spec.rules : [];
+      const matchTypeLabel = t => ({code_pattern:'编码模式匹配',code_prefix_token:'编码前缀遍历',label_exact:'标签精确匹配',label_semantic:'标签语义匹配'}[t] || t);
+      const derivLabel = m => ({identity:'直接匹配',prefix_expansion:'前缀展开',subtree_traversal:'子树遍历'}[m] || m);
+
+      let rulesHtml = '';
+      const showLimit = 20;
+      const ruleSlice = rules.slice(0, showLimit);
+      rulesHtml = `<table style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-top:8px">
+        <thead><tr style="background:var(--bg-deep)">
+          <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:500">规则ID</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:500">匹配方式</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:500">匹配值</th>
+          <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:500">推导模式</th>
+        </tr></thead><tbody>`;
+      ruleSlice.forEach(r => {
+        const vals = (r.match_values||[]).join(', ');
+        const deriv = r.derivation || {};
+        rulesHtml += `<tr style="border-top:1px solid var(--border-light)">
+          <td style="padding:5px 10px;font-family:var(--font-mono);color:var(--purple)">${esc(r.rule_id||'-')}</td>
+          <td style="padding:5px 10px">${matchTypeLabel(r.match_type)}</td>
+          <td style="padding:5px 10px;font-family:var(--font-mono)">${esc(vals.length > 80 ? vals.slice(0,80)+'...' : vals)}</td>
+          <td style="padding:5px 10px">${derivLabel(deriv.mode)}</td>
+        </tr>`;
+      });
+      rulesHtml += '</tbody></table>';
+      if (rules.length > showLimit) {
+        rulesHtml += `<div style="text-align:center;padding:8px;font-size:0.78rem;color:var(--muted);cursor:pointer" onclick="this.parentElement.querySelector('.rules-hidden').style.display='block';this.style.display='none'">▼ 展开剩余 ${rules.length - showLimit} 条规则</div>`;
+        rulesHtml += `<div class="rules-hidden" style="display:none"><table style="width:100%;border-collapse:collapse;font-size:0.78rem"><tbody>`;
+        rules.slice(showLimit).forEach(r => {
+          const vals = (r.match_values||[]).join(', ');
+          const deriv = r.derivation || {};
+          rulesHtml += `<tr style="border-top:1px solid var(--border-light)">
+            <td style="padding:5px 10px;font-family:var(--font-mono);color:var(--purple)">${esc(r.rule_id||'-')}</td>
+            <td style="padding:5px 10px">${matchTypeLabel(r.match_type)}</td>
+            <td style="padding:5px 10px;font-family:var(--font-mono)">${esc(vals.length > 80 ? vals.slice(0,80)+'...' : vals)}</td>
+            <td style="padding:5px 10px">${derivLabel(deriv.mode)}</td>
+          </tr>`;
+        });
+        rulesHtml += '</tbody></table></div>';
+      }
+
+      contentHtml = `
+        <div class="entry-content">
+          <div class="content-row"><span class="content-label">数据表</span><span class="content-value code">${esc(src.table || '-')}</span></div>
+          <div class="content-row"><span class="content-label">主键列</span><span class="content-value code">${esc(src.key_column || '-')}</span></div>
+          ${src.label_columns ? `<div class="content-row"><span class="content-label">标签列</span><span class="content-value">${(src.label_columns||[]).map(c => `<span class="sample-tag">${esc(c)}</span>`).join(' ')}</span></div>` : ''}
+          ${spec.embedding_model ? `<div class="content-row"><span class="content-label">向量模型</span><span class="content-value">${esc(spec.embedding_model)}</span></div>` : ''}
+          <div style="margin-top:10px"><span style="font-size:0.8rem;font-weight:500">匹配规则 (${rules.length} 条)</span></div>
+          ${rulesHtml}
+        </div>`;
+    } else if (e.kind === 'set_policy') {
+      const effect = spec.effect || {};
+      const excludeOrigin = Array.isArray(effect.exclude_origin) ? effect.exclude_origin : [];
+      const excludeMembers = Array.isArray(effect.exclude_members) ? effect.exclude_members : [];
+      const includeMembers = Array.isArray(effect.include_members) ? effect.include_members : [];
+      contentHtml = `
+        <div class="entry-content">
+          ${spec.binding_key ? `<div class="content-row"><span class="content-label">绑定</span><span class="content-value code">${esc(spec.binding_key)}</span></div>` : ''}
+          ${spec.trigger ? `<div class="content-row"><span class="content-label">触发条件</span><span class="content-value">${esc(typeof spec.trigger === 'string' ? spec.trigger : JSON.stringify(spec.trigger))}</span></div>` : ''}
+          ${excludeOrigin.length ? `<div class="content-row"><span class="content-label">排除来源</span><span class="content-value tag-list">${excludeOrigin.map(v => `<span class="sample-tag">${esc(v)}</span>`).join('')}</span></div>` : ''}
+          ${excludeMembers.length ? `<div class="content-row"><span class="content-label">排除成员</span><span class="content-value">${excludeMembers.length} 个 <span style="color:var(--muted);font-size:0.75rem">(${excludeMembers.slice(0,5).join(', ')}${excludeMembers.length > 5 ? '...' : ''})</span></span></div>` : ''}
+          ${includeMembers.length ? `<div class="content-row"><span class="content-label">包含成员</span><span class="content-value">${includeMembers.length} 个</span></div>` : ''}
+          ${effect.kind ? `<div class="content-row"><span class="content-label">效果类型</span><span class="content-value">${esc(effect.kind)}</span></div>` : ''}
+        </div>`;
+    } else if (e.kind === 'relationship') {
+      const joins = Array.isArray(spec.join_columns) ? spec.join_columns : [];
+      contentHtml = `
+        <div class="entry-content">
+          ${spec.description ? `<div class="content-text" style="margin-bottom:10px">${esc(spec.description)}</div>` : ''}
+          <div class="content-row"><span class="content-label">左表</span><span class="content-value code">${esc(spec.left_table || '-')}</span></div>
+          <div class="content-row"><span class="content-label">右表</span><span class="content-value code">${esc(spec.right_table || '-')}</span></div>
+          ${joins.length ? `<div class="content-row"><span class="content-label">关联列</span><span class="content-value">${joins.map(j => `<span class="sample-tag">${esc(j.left)} = ${esc(j.right)}</span>`).join(' ')}</span></div>` : ''}
+        </div>`;
     } else {
-      // 未知类型，显示原始 JSON
+      // 其他类型，显示原始 JSON
       let specDisplay = e.spec_json || '{}';
       try { specDisplay = JSON.stringify(JSON.parse(specDisplay), null, 2); } catch(ex) {}
       contentHtml = `<div class="entry-spec">${esc(specDisplay)}</div>`;
@@ -331,7 +414,11 @@ function kindLabel(kind) {
     'column_preference': '列偏好',
     'dimension': '维度',
     'named_filter': '命名过滤',
-    'logic_text': '逻辑文本'
+    'logic_text': '逻辑文本',
+    'set_binding': '集合绑定',
+    'set_policy': '集合策略',
+    'relationship': '表关联',
+    'lookup_mapping': '查找映射',
   };
   return labels[kind] || kind;
 }
