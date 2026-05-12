@@ -204,6 +204,10 @@
           <span class="nav-icon">🔧</span>
           <span>问数过滤条件</span>
         </button>
+        <button class="nav-item" onclick="switchPage('fr-migrate', this)">
+          <span class="nav-icon">🔄</span>
+          <span>过滤条件迁移</span>
+        </button>
         <button class="nav-item" onclick="switchPage('sys-config', this)">
           <span class="nav-icon">⚙️</span>
           <span>系统开关</span>
@@ -471,6 +475,74 @@
       </div>
     </div>
 
+    <!-- ==================== 过滤条件迁移 ==================== -->
+    <div class="page-content" id="page-fr-migrate">
+      <div class="page-header">
+        <h2>过滤条件迁移</h2>
+      </div>
+      <div class="container">
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">跨工作区迁移（过滤条件）</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="frMigSrcWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="frMigSrcTrigger" onclick="toggleFrMigDropdown('src')">
+                <span class="dbs-text" id="frMigSrcDisplay">问数Dev</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="frMigSrcDropdown">
+                <div class="dbs-options" id="frMigSrcOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">→</span>
+            <div class="db-select" id="frMigDstWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="frMigDstTrigger" onclick="toggleFrMigDropdown('dst')">
+                <span class="dbs-text" id="frMigDstDisplay">AI Portal</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="frMigDstDropdown">
+                <div class="dbs-options" id="frMigDstOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary" id="btnMigrateFr" onclick="runFrMigration()">执行迁移</button>
+            <label class="checkbox-wrap" style="margin-left:4px">
+              <input type="checkbox" id="chkMigFrOverwrite"> 覆盖（清空目标后写入）
+            </label>
+            <span id="migrateFrMsg" class="meta"></span>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px">将迁移目标工作区的全部规则集（fin_explore_filter_rule_set）和规则项（fin_explore_filter_rule）。</div>
+          <div id="migrateFrResult" style="display:none"></div>
+        </div>
+
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">过滤条件差异对比</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="frDiffAWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="frDiffATrigger" onclick="toggleFrDiffDropdown('a')">
+                <span class="dbs-text" id="frDiffADisplay">问数Dev</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="frDiffADropdown">
+                <div class="dbs-options" id="frDiffAOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">⇄</span>
+            <div class="db-select" id="frDiffBWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="frDiffBTrigger" onclick="toggleFrDiffDropdown('b')">
+                <span class="dbs-text" id="frDiffBDisplay">AI Portal</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="frDiffBDropdown">
+                <div class="dbs-options" id="frDiffBOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary" onclick="runFrCompare()">对比</button>
+            <span id="frDiffMsg" class="meta"></span>
+          </div>
+          <div id="frDiffResult" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ==================== 系统开关 ==================== -->
     <div class="page-content" id="page-sys-config">
       <div class="page-header">
@@ -578,7 +650,7 @@
       <label>配置类型 *</label>
       <select id="frConfigKey" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
         <option value="data_category">数据口径 (data_category)</option>
-        <option value="filter_conditions">过滤条件 (filter_conditions)</option>
+        <option value="filter_conditions">排除非关联交易 (filter_conditions)</option>
         <option value="data_scope_company">数据范围-公司 (data_scope_company)</option>
         <option value="data_scope_profit_center">数据范围-事业部 (data_scope_profit_center)</option>
       </select>
@@ -632,6 +704,7 @@
         <option value="ne">≠ (不等于)</option>
         <option value="in">IN (包含)</option>
         <option value="not_in">NOT IN (不包含)</option>
+        <option value="like">LIKE (模糊匹配)</option>
       </select>
     </div>
     <div class="field" id="frValueWrap">
@@ -947,6 +1020,10 @@
   }
   .dbs-option:hover { background: var(--accent-glow); }
   .dbs-option.selected { background: var(--green-light); color: var(--green); font-weight: 500; }
+
+  /* V2 diff 高亮 */
+  .v2-diff-del { background: #fde2e2; color: #c0392b; border-radius: 2px; padding: 0 1px; }
+  .v2-diff-ins { background: #d8f3dc; color: #1d6f3a; border-radius: 2px; padding: 0 1px; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -1789,12 +1866,88 @@ let v2DiffSnapshot = null;
 
 function v2EscArg(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
-function v2RenderDiffBox(label, content) {
-  const safe = escHtml(content == null ? '' : String(content));
+// 把字符串切成 token：英文/数字单词、CJK 段、空白、单个标点符号
+function v2Tokenize(s) {
+  if (!s) return [];
+  return s.match(/[A-Za-z0-9_]+|[一-龥]+|\s+|[^A-Za-z0-9_一-龥\s]/g) || [];
+}
+
+// LCS 回溯，返回 ops: [{op:'eq'|'del'|'ins', t}]
+function v2DiffOps(a, b) {
+  const n = a.length, m = b.length;
+  // 太大就不算了，避免卡死
+  if (n + m > 6000 || n * m > 4000000) return null;
+  const dp = [];
+  for (let i = 0; i <= n; i++) dp.push(new Int32Array(m + 1));
+  for (let i = 1; i <= n; i++) {
+    const ai = a[i - 1];
+    const di = dp[i], dim1 = dp[i - 1];
+    for (let j = 1; j <= m; j++) {
+      if (ai === b[j - 1]) di[j] = dim1[j - 1] + 1;
+      else di[j] = dim1[j] >= di[j - 1] ? dim1[j] : di[j - 1];
+    }
+  }
+  const ops = [];
+  let i = n, j = m;
+  while (i > 0 && j > 0) {
+    if (a[i - 1] === b[j - 1]) { ops.push({ op: 'eq', t: a[i - 1] }); i--; j--; }
+    else if (dp[i - 1][j] >= dp[i][j - 1]) { ops.push({ op: 'del', t: a[i - 1] }); i--; }
+    else { ops.push({ op: 'ins', t: b[j - 1] }); j--; }
+  }
+  while (i > 0) { ops.push({ op: 'del', t: a[i - 1] }); i--; }
+  while (j > 0) { ops.push({ op: 'ins', t: b[j - 1] }); j--; }
+  return ops.reverse();
+}
+
+// 渲染某一侧文本 — side 'a' 显示 eq + del（红高亮），side 'b' 显示 eq + ins（绿高亮）
+function v2RenderDiffSide(ops, side) {
+  let html = '';
+  let buf = '';
+  const flush = () => { if (buf) { html += escHtml(buf); buf = ''; } };
+  for (const o of ops) {
+    if (o.op === 'eq') buf += o.t;
+    else if (o.op === 'del' && side === 'a') {
+      flush();
+      html += `<span class="v2-diff-del">${escHtml(o.t)}</span>`;
+    } else if (o.op === 'ins' && side === 'b') {
+      flush();
+      html += `<span class="v2-diff-ins">${escHtml(o.t)}</span>`;
+    }
+  }
+  flush();
+  return html;
+}
+
+function v2DiffBoxHtml(label, contentHtml) {
   return `<div style="margin-bottom:6px">
     <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px">${label}</div>
-    <pre style="margin:0;background:var(--bg-deep);border:1px solid var(--border-light);border-radius:4px;padding:8px;font-size:0.72rem;font-family:var(--font-mono);max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-all">${safe || '<span style=\"color:var(--muted)\">(空)</span>'}</pre>
+    <pre style="margin:0;background:var(--bg-deep);border:1px solid var(--border-light);border-radius:4px;padding:8px;font-size:0.72rem;font-family:var(--font-mono);max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-all">${contentHtml || '<span style=\"color:var(--muted)\">(空)</span>'}</pre>
   </div>`;
+}
+
+// 单边渲染（不做差异高亮，用于 only_a / only_b）
+function v2RenderDiffBox(label, content) {
+  const safe = escHtml(content == null ? '' : String(content));
+  return v2DiffBoxHtml(label, safe);
+}
+
+// 双边并列渲染并相互高亮差异部分
+function v2RenderDiffPair(labelA, labelB, contentA, contentB) {
+  const a = String(contentA == null ? '' : contentA);
+  const b = String(contentB == null ? '' : contentB);
+  const ta = v2Tokenize(a);
+  const tb = v2Tokenize(b);
+  const ops = v2DiffOps(ta, tb);
+  let htmlA, htmlB;
+  if (ops) {
+    htmlA = v2RenderDiffSide(ops, 'a');
+    htmlB = v2RenderDiffSide(ops, 'b');
+  } else {
+    // 内容过大，回退到无高亮
+    htmlA = escHtml(a);
+    htmlB = escHtml(b);
+  }
+  return v2DiffBoxHtml(labelA, htmlA) + v2DiffBoxHtml(labelB, htmlB);
 }
 
 function v2DirectionButtons(srcKey, dstKey, srcLabel, dstLabel, onclickFn) {
@@ -1881,8 +2034,7 @@ function renderV2DiffResult() {
       if (diffs.description) {
         html += `<div style="margin:8px 0 8px 12px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
           <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">📝 描述不同</div>
-          ${v2RenderDiffBox(aL, diffs.description.a)}
-          ${v2RenderDiffBox(bL, diffs.description.b)}
+          ${v2RenderDiffPair(aL, bL, diffs.description.a, diffs.description.b)}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
             <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2ModelMeta('${aKey}','${bKey}','${nameEsc}',['description'])">以 ${aL} 为准 → ${bL}</button>
             <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2ModelMeta('${bKey}','${aKey}','${nameEsc}',['description'])">${aL} ← 以 ${bL} 为准</button>
@@ -1935,10 +2087,10 @@ function renderV2DiffResult() {
             const subs = [];
             if (id.spec_diff) subs.push(`spec`);
             if (id.tables_diff) subs.push(`tables`);
-            const subInfo = subs.length ? `<div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px">差异字段: ${subs.join(', ')}</div>` : '';
+            const subInfo = subs.length ? `<div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px">差异字段: ${subs.join(', ')}（<span class="v2-diff-del">红色</span> 仅 ${aL} 有，<span class="v2-diff-ins">绿色</span> 仅 ${bL} 有）</div>` : '';
             body = subInfo
-                 + (id.spec_diff ? v2RenderDiffBox(`${aL} · spec`, id.a_spec) + v2RenderDiffBox(`${bL} · spec`, id.b_spec) : '')
-                 + (id.tables_diff ? v2RenderDiffBox(`${aL} · tables`, id.a_tables) + v2RenderDiffBox(`${bL} · tables`, id.b_tables) : '');
+                 + (id.spec_diff ? v2RenderDiffPair(`${aL} · spec`, `${bL} · spec`, id.a_spec, id.b_spec) : '')
+                 + (id.tables_diff ? v2RenderDiffPair(`${aL} · tables`, `${bL} · tables`, id.a_tables, id.b_tables) : '');
             buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${aKey}','${bKey}','${nameEsc}','${kindEsc}','${keyEsc}')">以 ${aL} 为准 → ${bL}</button>
                        <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncV2Entry('${bKey}','${aKey}','${nameEsc}','${kindEsc}','${keyEsc}')">${aL} ← 以 ${bL} 为准</button>`;
           }
@@ -1990,6 +2142,354 @@ async function syncV2Entry(srcKey, dstKey, modelName, kind, keyName) {
     const d = await res.json();
     if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
     await runV2Compare();
+  } catch(e) { showDialog('同步失败: ' + e.message); }
+}
+
+
+// ==================== 过滤条件迁移：跨工作区迁移 ====================
+let frMigSrc = 'remote', frMigDst = 'portal';
+let frMigSrcOpen = false, frMigDstOpen = false;
+
+function renderFrMigOptions(which) {
+  const c = document.getElementById(which === 'src' ? 'frMigSrcOptions' : 'frMigDstOptions');
+  const cur = which === 'src' ? frMigSrc : frMigDst;
+  c.innerHTML = MIG_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === cur ? ' selected' : ''}" onclick="selectFrMigWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleFrMigDropdown(which) {
+  if (which === 'src') {
+    frMigSrcOpen = !frMigSrcOpen;
+    document.getElementById('frMigSrcDropdown').classList.toggle('open', frMigSrcOpen);
+    document.getElementById('frMigSrcTrigger').classList.toggle('open', frMigSrcOpen);
+    if (frMigSrcOpen) renderFrMigOptions('src');
+  } else {
+    frMigDstOpen = !frMigDstOpen;
+    document.getElementById('frMigDstDropdown').classList.toggle('open', frMigDstOpen);
+    document.getElementById('frMigDstTrigger').classList.toggle('open', frMigDstOpen);
+    if (frMigDstOpen) renderFrMigOptions('dst');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (frMigSrcOpen && !e.target.closest('#frMigSrcWrap')) {
+    frMigSrcOpen = false;
+    document.getElementById('frMigSrcDropdown').classList.remove('open');
+    document.getElementById('frMigSrcTrigger').classList.remove('open');
+  }
+  if (frMigDstOpen && !e.target.closest('#frMigDstWrap')) {
+    frMigDstOpen = false;
+    document.getElementById('frMigDstDropdown').classList.remove('open');
+    document.getElementById('frMigDstTrigger').classList.remove('open');
+  }
+});
+
+function selectFrMigWs(which, key) {
+  const label = MIG_WORKSPACES.find(w => w.key === key).label;
+  if (which === 'src') {
+    frMigSrc = key;
+    document.getElementById('frMigSrcDisplay').textContent = label;
+    frMigSrcOpen = false;
+    document.getElementById('frMigSrcDropdown').classList.remove('open');
+    document.getElementById('frMigSrcTrigger').classList.remove('open');
+  } else {
+    frMigDst = key;
+    document.getElementById('frMigDstDisplay').textContent = label;
+    frMigDstOpen = false;
+    document.getElementById('frMigDstDropdown').classList.remove('open');
+    document.getElementById('frMigDstTrigger').classList.remove('open');
+  }
+}
+
+async function runFrMigration() {
+  if (frMigSrc === frMigDst) { showDialog('源和目标不能相同'); return; }
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === frMigSrc).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === frMigDst).label;
+  const overwrite = document.getElementById('chkMigFrOverwrite').checked;
+  const overwriteWarn = overwrite ? '\n\n⚠️ 覆盖模式：将先删除目标库的全部规则集与规则！' : '';
+  if (!await showDialog(`确定将 [过滤条件] 从「${srcLabel}」迁移到「${dstLabel}」？${overwriteWarn}`, {type:'confirm'})) return;
+
+  const btn = document.getElementById('btnMigrateFr');
+  const msg = document.getElementById('migrateFrMsg');
+  const resultDiv = document.getElementById('migrateFrResult');
+  btn.disabled = true;
+  msg.textContent = '迁移中…';
+  resultDiv.style.display = 'none';
+  try {
+    const res = await fetch('/api/migrate-filter-rules', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: frMigSrc, target: frMigDst, overwrite }),
+    });
+    const d = await res.json();
+    const line = d.ok
+      ? `✓ 过滤条件: 迁移 ${d.sets_count} 个规则集, ${d.rules_count} 条规则${d.deleted_sets ? ` (已清空旧数据: ${d.deleted_sets}规则集/${d.deleted_rules}规则)` : ''}`
+      : `✗ 过滤条件: ${d.msg}`;
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem">
+        <div style="font-weight:500;margin-bottom:10px;color:var(--accent)">迁移结果 (${escHtml(srcLabel)} → ${escHtml(dstLabel)})</div>
+        <div style="padding:4px 0;${line.startsWith('✗') ? 'color:var(--clay)' : ''}">${escHtml(line)}</div>
+      </div>`;
+    btn.disabled = false;
+  } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); btn.disabled = false; }
+}
+
+
+// ==================== 过滤条件迁移：差异对比 ====================
+let frDiffA = 'remote', frDiffB = 'portal';
+let frDiffAOpen = false, frDiffBOpen = false;
+let frDiffSnapshot = null;
+
+function renderFrDiffOptions(which) {
+  const c = document.getElementById(which === 'a' ? 'frDiffAOptions' : 'frDiffBOptions');
+  const cur = which === 'a' ? frDiffA : frDiffB;
+  c.innerHTML = MIG_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === cur ? ' selected' : ''}" onclick="selectFrDiffWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleFrDiffDropdown(which) {
+  if (which === 'a') {
+    frDiffAOpen = !frDiffAOpen;
+    document.getElementById('frDiffADropdown').classList.toggle('open', frDiffAOpen);
+    document.getElementById('frDiffATrigger').classList.toggle('open', frDiffAOpen);
+    if (frDiffAOpen) renderFrDiffOptions('a');
+  } else {
+    frDiffBOpen = !frDiffBOpen;
+    document.getElementById('frDiffBDropdown').classList.toggle('open', frDiffBOpen);
+    document.getElementById('frDiffBTrigger').classList.toggle('open', frDiffBOpen);
+    if (frDiffBOpen) renderFrDiffOptions('b');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (frDiffAOpen && !e.target.closest('#frDiffAWrap')) {
+    frDiffAOpen = false;
+    document.getElementById('frDiffADropdown').classList.remove('open');
+    document.getElementById('frDiffATrigger').classList.remove('open');
+  }
+  if (frDiffBOpen && !e.target.closest('#frDiffBWrap')) {
+    frDiffBOpen = false;
+    document.getElementById('frDiffBDropdown').classList.remove('open');
+    document.getElementById('frDiffBTrigger').classList.remove('open');
+  }
+});
+
+function selectFrDiffWs(which, key) {
+  const label = MIG_WORKSPACES.find(w => w.key === key).label;
+  if (which === 'a') {
+    frDiffA = key;
+    document.getElementById('frDiffADisplay').textContent = label;
+    frDiffAOpen = false;
+    document.getElementById('frDiffADropdown').classList.remove('open');
+    document.getElementById('frDiffATrigger').classList.remove('open');
+  } else {
+    frDiffB = key;
+    document.getElementById('frDiffBDisplay').textContent = label;
+    frDiffBOpen = false;
+    document.getElementById('frDiffBDropdown').classList.remove('open');
+    document.getElementById('frDiffBTrigger').classList.remove('open');
+  }
+}
+
+async function runFrCompare() {
+  if (frDiffA === frDiffB) { showDialog('两个工作区不能相同'); return; }
+  const msg = document.getElementById('frDiffMsg');
+  const resultDiv = document.getElementById('frDiffResult');
+  msg.textContent = '对比中…';
+  resultDiv.style.display = 'none';
+  try {
+    const res = await fetch('/api/compare-filter-rules', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a: frDiffA, b: frDiffB }),
+    });
+    const d = await res.json();
+    if (!d.ok) { msg.textContent = ''; showDialog('对比失败: ' + d.msg); return; }
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+    frDiffSnapshot = d;
+    renderFrDiffResult();
+  } catch(e) { msg.textContent = ''; showDialog('对比失败: ' + e.message); }
+}
+
+function renderFrDiffResult() {
+  const d = frDiffSnapshot;
+  if (!d) return;
+  const resultDiv = document.getElementById('frDiffResult');
+  const aL = escHtml(d.a_label), bL = escHtml(d.b_label);
+  const aKey = d.a_key, bKey = d.b_key;
+  const bothTotal = (d.same_count || 0) + d.diff.length;
+  let html = `<div style="font-size:0.82rem;margin-bottom:14px;display:flex;gap:20px;flex-wrap:wrap">
+    <span><b style="color:var(--accent)">${aL}</b>: ${d.a_total} 个规则集</span>
+    <span><b style="color:var(--clay)">${bL}</b>: ${d.b_total} 个规则集</span>
+    <span>共同: ${bothTotal} 个（一致 ${d.same_count || 0}，有差异 ${d.diff.length}）</span>
+  </div>`;
+
+  const renderSetTitle = (s) => `<span style="font-family:var(--font-mono)">${escHtml(s.config_key)} / ${escHtml(s.config_value)} / <code>${escHtml(s.table_name)}</code></span>`;
+
+  if (d.only_a.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--accent);margin-bottom:6px">仅在 ${aL} (${d.only_a.length})</div>`;
+    d.only_a.forEach(s => {
+      const ckEsc = v2EscArg(s.config_key);
+      const cvEsc = v2EscArg(s.config_value);
+      const tnEsc = v2EscArg(s.table_name);
+      html += `<div style="padding:8px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+        <div>${renderSetTitle(s)} <span style="color:var(--muted)">#${s.id} · ${s.rules_count}条规则</span></div>
+        ${s.note ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:4px 0 0 0">${escHtml(s.note)}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrSetFull('${aKey}','${bKey}','${ckEsc}','${cvEsc}','${tnEsc}')">复制 ${aL} → ${bL} (新建整个规则集)</button>
+          <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrSetFull('${bKey}','${aKey}','${ckEsc}','${cvEsc}','${tnEsc}')">${aL} ← 以 ${bL} 为准 (从 ${aL} 删除)</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  if (d.only_b.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--clay);margin-bottom:6px">仅在 ${bL} (${d.only_b.length})</div>`;
+    d.only_b.forEach(s => {
+      const ckEsc = v2EscArg(s.config_key);
+      const cvEsc = v2EscArg(s.config_value);
+      const tnEsc = v2EscArg(s.table_name);
+      html += `<div style="padding:8px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+        <div>${renderSetTitle(s)} <span style="color:var(--muted)">#${s.id} · ${s.rules_count}条规则</span></div>
+        ${s.note ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:4px 0 0 0">${escHtml(s.note)}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+          <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrSetFull('${aKey}','${bKey}','${ckEsc}','${cvEsc}','${tnEsc}')">以 ${aL} 为准 → ${bL} (从 ${bL} 删除)</button>
+          <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrSetFull('${bKey}','${aKey}','${ckEsc}','${cvEsc}','${tnEsc}')">复制 ${bL} → ${aL} (新建整个规则集)</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  if (d.diff.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--warm);margin-bottom:6px">内容有差异 (${d.diff.length})</div>`;
+    d.diff.forEach(df => {
+      const ckEsc = v2EscArg(df.config_key);
+      const cvEsc = v2EscArg(df.config_value);
+      const tnEsc = v2EscArg(df.table_name);
+      html += `<div style="padding:14px 0;border-bottom:1px solid var(--border-light)">
+        <div style="font-size:0.85rem;font-family:var(--font-mono);font-weight:600;margin-bottom:8px">${escHtml(df.config_key)} / ${escHtml(df.config_value)} / <code>${escHtml(df.table_name)}</code> <span style="color:var(--muted);font-weight:400">${aL} #${df.a_id} (${df.a_rules}条) / ${bL} #${df.b_id} (${df.b_rules}条)</span></div>`;
+
+      const meta = df.diffs || {};
+      if (meta.note) {
+        html += `<div style="margin:8px 0 8px 12px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">📝 备注不同</div>
+          ${v2RenderDiffPair(aL, bL, meta.note.a, meta.note.b)}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrSetMeta('${aKey}','${bKey}','${ckEsc}','${cvEsc}','${tnEsc}',['note'])">以 ${aL} 为准 → ${bL}</button>
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrSetMeta('${bKey}','${aKey}','${ckEsc}','${cvEsc}','${tnEsc}',['note'])">${aL} ← 以 ${bL} 为准</button>
+          </div>
+        </div>`;
+      }
+
+      const rd = df.rule_diffs || [];
+      if (rd.length) {
+        html += `<div style="margin:8px 0 0 12px">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">🔧 规则差异 (${rd.length})</div>`;
+        rd.forEach(id => {
+          const fEsc = v2EscArg(id.field);
+          const opEsc = v2EscArg(id.op);
+          const head = `<span style="font-family:var(--font-mono);font-size:0.78rem"><span style="color:var(--green)">${escHtml(id.field)}</span> <span style="color:var(--purple)">${escHtml(id.op)}</span></span>`;
+          let badge = '', body = '', buttons = '';
+          if (id.status === 'only_a') {
+            badge = `<span style="background:var(--accent-glow);color:var(--accent);padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">仅 ${aL}</span>`;
+            body = (id.a_literal ? v2RenderDiffBox(`${aL} · literal_value`, id.a_literal) : '')
+                 + (id.a_literals && id.a_literals !== '[]' && id.a_literals !== 'null' ? v2RenderDiffBox(`${aL} · literal_values`, id.a_literals) : '')
+                 + (id.a_source ? `<div style="font-size:0.72rem;margin-top:4px">value_source: <code>${escHtml(id.a_source)}</code></div>` : '')
+                 + `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">order_idx: ${id.a_order}</div>`;
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrRule('${aKey}','${bKey}','${ckEsc}','${cvEsc}','${tnEsc}','${fEsc}','${opEsc}')">复制 ${aL} → ${bL} (新增)</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrRule('${bKey}','${aKey}','${ckEsc}','${cvEsc}','${tnEsc}','${fEsc}','${opEsc}')">${aL} ← 以 ${bL} 为准 (从 ${aL} 删除)</button>`;
+          } else if (id.status === 'only_b') {
+            badge = `<span style="background:var(--clay-light);color:var(--clay);padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">仅 ${bL}</span>`;
+            body = (id.b_literal ? v2RenderDiffBox(`${bL} · literal_value`, id.b_literal) : '')
+                 + (id.b_literals && id.b_literals !== '[]' && id.b_literals !== 'null' ? v2RenderDiffBox(`${bL} · literal_values`, id.b_literals) : '')
+                 + (id.b_source ? `<div style="font-size:0.72rem;margin-top:4px">value_source: <code>${escHtml(id.b_source)}</code></div>` : '')
+                 + `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">order_idx: ${id.b_order}</div>`;
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrRule('${aKey}','${bKey}','${ckEsc}','${cvEsc}','${tnEsc}','${fEsc}','${opEsc}')">以 ${aL} 为准 → ${bL} (从 ${bL} 删除)</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrRule('${bKey}','${aKey}','${ckEsc}','${cvEsc}','${tnEsc}','${fEsc}','${opEsc}')">复制 ${bL} → ${aL} (新增)</button>`;
+          } else {
+            badge = `<span style="background:#fff3cd;color:#856404;padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">内容不同</span>`;
+            const subs = [];
+            if (id.literal_diff) subs.push('literal_value');
+            if (id.literals_diff) subs.push('literal_values');
+            if (id.source_diff) subs.push('value_source');
+            if (id.order_diff) subs.push('order_idx');
+            const subInfo = subs.length ? `<div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px">差异字段: ${subs.join(', ')}</div>` : '';
+            body = subInfo
+                 + (id.literal_diff ? v2RenderDiffPair(`${aL} · literal_value`, `${bL} · literal_value`, id.a_literal, id.b_literal) : '')
+                 + (id.literals_diff ? v2RenderDiffPair(`${aL} · literal_values`, `${bL} · literal_values`, id.a_literals, id.b_literals) : '')
+                 + (id.source_diff ? `<div style="font-size:0.72rem;margin-top:4px">value_source: <code>${escHtml(id.a_source||'')}</code> → <code>${escHtml(id.b_source||'')}</code></div>` : '')
+                 + (id.order_diff ? `<div style="font-size:0.72rem;color:var(--muted);margin-top:2px">order_idx: ${id.a_order} → ${id.b_order}</div>` : '');
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrRule('${aKey}','${bKey}','${ckEsc}','${cvEsc}','${tnEsc}','${fEsc}','${opEsc}')">以 ${aL} 为准 → ${bL}</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncFrRule('${bKey}','${aKey}','${ckEsc}','${cvEsc}','${tnEsc}','${fEsc}','${opEsc}')">${aL} ← 以 ${bL} 为准</button>`;
+          }
+          html += `<div style="padding:8px;margin-bottom:6px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+            <div style="margin-bottom:6px">${head}${badge}</div>
+            ${body}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${buttons}</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+    });
+    html += '</div>';
+  }
+
+  if (!d.only_a.length && !d.only_b.length && !d.diff.length) {
+    html += `<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.85rem">两个工作区的过滤条件配置完全一致 ✓</div>`;
+  }
+
+  resultDiv.innerHTML = html;
+}
+
+async function syncFrSetFull(srcKey, dstKey, configKey, configValue, tableName) {
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === srcKey).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === dstKey).label;
+  if (!await showDialog(`确定将整个规则集「${configKey}/${configValue}/${tableName}」从「${srcLabel}」同步到「${dstLabel}」？\n\n• src 有则在 dst 新建/替换（含全部 rules）\n• src 无则从 dst 删除`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-filter-rule-set-full', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: srcKey, target: dstKey, config_key: configKey, config_value: configValue, table_name: tableName }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    await runFrCompare();
+  } catch(e) { showDialog('同步失败: ' + e.message); }
+}
+
+async function syncFrSetMeta(srcKey, dstKey, configKey, configValue, tableName, fields) {
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === srcKey).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === dstKey).label;
+  const fieldNames = fields.map(f => f === 'note' ? '备注' : f).join('、');
+  if (!await showDialog(`确定将规则集「${configKey}/${configValue}/${tableName}」的【${fieldNames}】从「${srcLabel}」覆盖到「${dstLabel}」？`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-filter-rule-set-meta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: srcKey, target: dstKey, config_key: configKey, config_value: configValue, table_name: tableName, fields }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    await runFrCompare();
+  } catch(e) { showDialog('同步失败: ' + e.message); }
+}
+
+async function syncFrRule(srcKey, dstKey, configKey, configValue, tableName, field, op) {
+  const srcLabel = MIG_WORKSPACES.find(w => w.key === srcKey).label;
+  const dstLabel = MIG_WORKSPACES.find(w => w.key === dstKey).label;
+  if (!await showDialog(`确定将规则集「${configKey}/${configValue}/${tableName}」的规则「${field} ${op}」从「${srcLabel}」同步到「${dstLabel}」？\n\n（src 有则 upsert，src 无则 dst 删除）`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-filter-rule', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: srcKey, target: dstKey, config_key: configKey, config_value: configValue, table_name: tableName, field, op }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    await runFrCompare();
   } catch(e) { showDialog('同步失败: ' + e.message); }
 }
 
@@ -2431,7 +2931,7 @@ let frColumnsCache = {};     // table_name -> [{name, comment}]
 
 const FR_META = {
   data_category:            { icon: '📊', title: '数据口径',           color: 'warm',   desc: '根据管口/法口筛选数据。管口(PC)适合内部管理，法口(LG)适合对外披露。' },
-  filter_conditions:        { icon: '🔍', title: '过滤条件',           color: 'accent', desc: '配置数据过滤规则，如排除内部关联交易数据。' },
+  filter_conditions:        { icon: '🔍', title: '排除非关联交易',     color: 'accent', desc: '配置数据过滤规则，如排除内部关联交易数据。' },
   data_scope_company:       { icon: '🏢', title: '数据范围 — 按公司',   color: 'green',  desc: '按公司维度限定统计范围，运行时由用户选择具体公司代码。' },
   data_scope_profit_center: { icon: '🏭', title: '数据范围 — 按事业部', color: 'purple', desc: '按事业部/利润中心维度限定统计范围，运行时由用户选择具体事业部。' },
 };
@@ -2440,14 +2940,19 @@ function frFmtOp(op) {
   return { eq:'=', ne:'≠', in:'IN', not_in:'NOT IN', gt:'>', gte:'≥', lt:'<', lte:'≤', between:'BETWEEN', like:'LIKE', is_null:'IS NULL', is_not_null:'IS NOT NULL' }[op] || op;
 }
 
-function frFmtValue(r) {
-  if (r.value_source === 'selected_ids') return '<span style="font-size:0.72rem;padding:2px 8px;border-radius:4px;background:rgba(251,146,60,0.15);color:var(--warm)">用户选择</span>';
-  if (r.value_source === 'code_group_code') return '<span style="font-size:0.72rem;padding:2px 8px;border-radius:4px;background:rgba(251,146,60,0.15);color:var(--warm)">编码组映射</span>';
+function frFmtLiteral(r) {
   if (r.literal_value) return `<code style="color:var(--warm)">'${escHtml(r.literal_value)}'</code>`;
   if (r.literal_values) {
     try { const a = JSON.parse(r.literal_values); return `<code style="color:var(--warm)">[${a.map(v=>"'"+escHtml(v)+"'").join(', ')}]</code>`; }
     catch { return `<code style="color:var(--warm)">${escHtml(r.literal_values)}</code>`; }
   }
+  return '<span style="color:var(--clay)">—</span>';
+}
+
+function frFmtSource(r) {
+  const badge = (txt) => `<span style="font-size:0.72rem;padding:2px 8px;border-radius:4px;background:rgba(251,146,60,0.15);color:var(--warm)">${txt}</span>`;
+  if (r.value_source === 'selected_ids') return badge('用户选择');
+  if (r.value_source === 'code_group_code') return badge('编码组映射');
   return '<span style="color:var(--clay)">—</span>';
 }
 
@@ -2491,7 +2996,7 @@ async function loadFilterRules() {
       </div>`;
       if (m.desc) html += `<div style="font-size:0.82rem;color:var(--clay);margin-bottom:12px;line-height:1.5">${m.desc}</div>`;
 
-      html += `<table class="dtable"><thead><tr><th>表名</th><th>配置值</th><th>字段</th><th>操作符</th><th>过滤值</th><th>说明</th><th style="width:60px"></th></tr></thead><tbody>`;
+      html += `<table class="dtable"><thead><tr><th>表名</th><th>配置值</th><th>字段</th><th>操作符</th><th>过滤值</th><th>值来源</th><th>说明</th><th style="width:60px"></th></tr></thead><tbody>`;
       for (const rs of items) {
         const rules = rs.rules || [];
         const rsIdx = `_fr_${rs.id}`;
@@ -2501,7 +3006,7 @@ async function loadFilterRules() {
           <button class="btn-ghost" style="padding:4px 6px;font-size:1rem;line-height:1" onclick="deleteFrRule(${rs.id})" title="删除">🗑️</button>
         </div>`;
         if (!rules.length) {
-          html += `<tr><td><code>${escHtml(rs.table_name)}</code></td><td>${escHtml(rs.config_value)}</td><td colspan="3" style="color:var(--clay)">（无具体规则）</td><td style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td><td>${actionBtns}</td></tr>`;
+          html += `<tr><td><code>${escHtml(rs.table_name)}</code></td><td>${escHtml(rs.config_value)}</td><td colspan="4" style="color:var(--clay)">（无具体规则）</td><td style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td><td>${actionBtns}</td></tr>`;
         } else {
           for (let i=0;i<rules.length;i++) {
             const r = rules[i];
@@ -2512,7 +3017,8 @@ async function loadFilterRules() {
             }
             html += `<td><code style="color:var(--green)">${escHtml(r.field)}</code></td>`;
             html += `<td><code style="color:var(--purple)">${frFmtOp(r.op)}</code></td>`;
-            html += `<td>${frFmtValue(r)}</td>`;
+            html += `<td>${frFmtLiteral(r)}</td>`;
+            html += `<td>${frFmtSource(r)}</td>`;
             if (i===0) {
               html += `<td rowspan="${rules.length}" style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td>`;
               html += `<td rowspan="${rules.length}">${actionBtns}</td>`;
@@ -2589,8 +3095,13 @@ function filterFrTableOptions() {
   const q = (document.getElementById('frTableSearch').value || '').toLowerCase();
   const container = document.getElementById('frTableOptions');
   container.innerHTML = frTablesList
-    .filter(t => !q || t.toLowerCase().includes(q))
-    .map(t => `<div class="dbs-option${t === frSelectedTable ? ' selected' : ''}" onclick="selectFrTable('${escHtml(t)}')">${escHtml(t)}</div>`)
+    .filter(t => !q || t.name.toLowerCase().includes(q) || (t.comment || '').toLowerCase().includes(q))
+    .map(t => {
+      const nameEsc = escHtml(t.name);
+      const cmtEsc = escHtml(t.comment || '');
+      const cmt = cmtEsc ? `<span style="color:var(--muted);font-size:0.78rem;margin-left:8px">${cmtEsc}</span>` : '';
+      return `<div class="dbs-option${t.name === frSelectedTable ? ' selected' : ''}" onclick="selectFrTable('${v2EscArg(t.name)}')" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="font-family:var(--font-mono)">${nameEsc}</span>${cmt}</div>`;
+    })
     .join('');
 }
 
@@ -2641,7 +3152,9 @@ function selectFrField(name) {
 function onFrOpChange() {
   const op = document.getElementById('frOp').value;
   const isMulti = (op === 'in' || op === 'not_in');
-  document.getElementById('frLiteralValue').style.display = isMulti ? 'none' : '';
+  const lit = document.getElementById('frLiteralValue');
+  lit.style.display = isMulti ? 'none' : '';
+  lit.placeholder = op === 'like' ? '模糊匹配，使用 % 通配符，如: %内部%' : '单值，如: LG';
   document.getElementById('frLiteralValuesWrap').style.display = isMulti ? 'block' : 'none';
 }
 

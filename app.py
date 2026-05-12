@@ -274,6 +274,93 @@ def api_sync_v2_model_meta():
         return jsonify({"ok": False, "msg": f"同步失败: {e}"}), 500
 
 
+@app.route("/api/migrate-filter-rules", methods=["POST"])
+def api_migrate_filter_rules():
+    body = request.get_json(force=True) or {}
+    source = body.get("source", "remote")
+    target = body.get("target", "portal")
+    overwrite = body.get("overwrite", False)
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.migrate_filter_rules(source, target, overwrite=overwrite))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"迁移失败: {e}"}), 500
+
+
+@app.route("/api/compare-filter-rules", methods=["POST"])
+def api_compare_filter_rules():
+    body = request.get_json(force=True) or {}
+    ws_a = body.get("a", "remote")
+    ws_b = body.get("b", "portal")
+    if ws_a == ws_b:
+        return jsonify({"ok": False, "msg": "两个工作区不能相同"}), 400
+    try:
+        return jsonify(db_service.compare_filter_rules(ws_a, ws_b))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"对比失败: {e}"}), 500
+
+
+@app.route("/api/sync-filter-rule-set-meta", methods=["POST"])
+def api_sync_filter_rule_set_meta():
+    body = request.get_json(force=True) or {}
+    source = body.get("source")
+    target = body.get("target")
+    config_key = body.get("config_key")
+    config_value = body.get("config_value")
+    table_name = body.get("table_name")
+    fields = body.get("fields") or []
+    if not source or not target or not config_key or not config_value or not table_name or not fields:
+        return jsonify({"ok": False, "msg": "参数不完整"}), 400
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.apply_filter_rule_set_meta(
+            source, target, config_key, config_value, table_name, fields))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"同步失败: {e}"}), 500
+
+
+@app.route("/api/sync-filter-rule-set-full", methods=["POST"])
+def api_sync_filter_rule_set_full():
+    body = request.get_json(force=True) or {}
+    source = body.get("source")
+    target = body.get("target")
+    config_key = body.get("config_key")
+    config_value = body.get("config_value")
+    table_name = body.get("table_name")
+    if not source or not target or not config_key or not config_value or not table_name:
+        return jsonify({"ok": False, "msg": "参数不完整"}), 400
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.apply_filter_rule_set_full(
+            source, target, config_key, config_value, table_name))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"同步失败: {e}"}), 500
+
+
+@app.route("/api/sync-filter-rule", methods=["POST"])
+def api_sync_filter_rule():
+    body = request.get_json(force=True) or {}
+    source = body.get("source")
+    target = body.get("target")
+    config_key = body.get("config_key")
+    config_value = body.get("config_value")
+    table_name = body.get("table_name")
+    field = body.get("field")
+    op = body.get("op")
+    if not source or not target or not config_key or not config_value or not table_name or field is None or op is None:
+        return jsonify({"ok": False, "msg": "参数不完整"}), 400
+    if source == target:
+        return jsonify({"ok": False, "msg": "源和目标不能相同"}), 400
+    try:
+        return jsonify(db_service.apply_filter_rule(
+            source, target, config_key, config_value, table_name, field, op))
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"同步失败: {e}"}), 500
+
+
 @app.route("/api/sync-v2-entry", methods=["POST"])
 def api_sync_v2_entry():
     body = request.get_json(force=True) or {}

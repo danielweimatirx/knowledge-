@@ -1160,15 +1160,15 @@ def get_filter_rules(target: str) -> dict:
 
 
 def get_jst_flat_tables(target: str) -> dict:
-    """获取 jst_flat_table 数据库中所有表名"""
+    """获取 jst_flat_table 数据库中所有表名 + 表描述（TABLE_COMMENT）"""
     conn = _get_jst_conn(target)
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT DISTINCT table_name FROM information_schema.columns "
-                "WHERE table_schema = 'jst_flat_table' ORDER BY table_name"
+                "SELECT TABLE_NAME, TABLE_COMMENT FROM information_schema.tables "
+                "WHERE table_schema = 'jst_flat_table' ORDER BY TABLE_NAME"
             )
-            tables = [r[0] for r in cur.fetchall()]
+            tables = [{"name": r[0], "comment": r[1] or ""} for r in cur.fetchall()]
         return {"ok": True, "tables": tables}
     except Exception as e:
         return {"ok": False, "msg": str(e)}
@@ -1434,8 +1434,17 @@ def compare_semantic_models(ws_a: str, ws_b: str) -> dict:
                 def entry_key(e):
                     return (e.get("kind") or "", e.get("key_name") or "")
 
+                def _norm(s):
+                    """对比时把 None / 'null' / '[]' / '{}' / 空串视作等价的'空'"""
+                    if s is None:
+                        return ""
+                    t = str(s).strip()
+                    if t in ("null", "[]", "{}"):
+                        return ""
+                    return t
+
                 def entry_content(e):
-                    return (e.get("tables_json") or "", e.get("spec_json") or "")
+                    return (_norm(e.get("tables_json")), _norm(e.get("spec_json")))
 
                 a_map = {entry_key(i): i for i in ea}
                 b_map = {entry_key(i): i for i in eb}
@@ -1467,14 +1476,14 @@ def compare_semantic_models(ws_a: str, ws_b: str) -> dict:
                             "b_spec": ib.get("spec_json") or "",
                             "a_tables": ia.get("tables_json") or "",
                             "b_tables": ib.get("tables_json") or "",
-                            "spec_diff": (ia.get("spec_json") or "") != (ib.get("spec_json") or ""),
-                            "tables_diff": (ia.get("tables_json") or "") != (ib.get("tables_json") or ""),
+                            "spec_diff": _norm(ia.get("spec_json")) != _norm(ib.get("spec_json")),
+                            "tables_diff": _norm(ia.get("tables_json")) != _norm(ib.get("tables_json")),
                         })
 
                 diffs_detail = {}
-                if (ma.get("description") or "") != (mb.get("description") or ""):
+                if (ma.get("description") or "").strip() != (mb.get("description") or "").strip():
                     diffs_detail["description"] = {"a": ma.get("description") or "", "b": mb.get("description") or ""}
-                if ma.get("tables_json") != mb.get("tables_json"):
+                if _norm(ma.get("tables_json")) != _norm(mb.get("tables_json")):
                     diffs_detail["tables"] = {"a": ma.get("tables_json"), "b": mb.get("tables_json")}
 
                 if entry_diffs or diffs_detail:
@@ -1718,6 +1727,489 @@ def migrate_semantic_models(source: str, target: str, overwrite: bool = False) -
     finally:
         src_conn.close()
         dst_conn.close()
+
+
+def _norm_jsonish(s):
+    """对比时把 None / 'null' / '[]' / '{}' / 空串视作等价的'空'"""
+    if s is None:
+        return ""
+    t = str(s).strip()
+    if t in ("null", "[]", "{}"):
+        return ""
+    return t
+
+
+def compare_filter_rules(ws_a: str, ws_b: str) -> dict:
+    """对比两个工作区的过滤条件配置（fin_explore_filter_rule_set + fin_explore_filter_rule）。
+    rule_set 按 (config_key, config_value, table_name) 匹配；rule_set 内 rule 按 (field, op) 匹配。
+    """
+    label_a = WORKSPACE_LABELS.get(ws_a, ws_a)
+    label_b = WORKSPACE_LABELS.get(ws_b, ws_b)
+    conn_a = conn_b = None
+    try:
+        conn_a = _get_jst_conn(ws_a)
+    except Exception as e:
+        return {"ok": False, "msg": f"连接工作区 [{label_a}] 失败: {e}"}
+    try:
+        conn_b = _get_jst_conn(ws_b)
+    except Exception as e:
+        conn_a.close()
+        return {"ok": False, "msg": f"连接工作区 [{label_b}] 失败: {e}"}
+    try:
+        def _fetch_sets(conn):
+            with conn.cursor(pymysql.cursors.DictCursor) as cur:
+                cur.execute(
+                    "SELECT id, config_key, config_value, table_name, note "
+                    "FROM fin_explore_filter_rule_set ORDER BY id"
+                )
+                return cur.fetchall()
+
+        def _fetch_rules(conn, set_ids):
+            if not set_ids:
+                return {}
+            with conn.cursor(pymysql.cursors.DictCursor) as cur:
+                placeholders = ",".join(["%s"] * len(set_ids))
+                cur.execute(
+                    f"SELECT rule_set_id, field, op, literal_value, "
+                    f"CAST(literal_values AS CHAR) AS literal_values, "
+                    f"value_source, order_idx "
+                    f"FROM fin_explore_filter_rule WHERE rule_set_id IN ({placeholders}) "
+                    f"ORDER BY rule_set_id, order_idx",
+                    set_ids
+                )
+                rows = cur.fetchall()
+            res = {sid: [] for sid in set_ids}
+            for r in rows:
+                res[r["rule_set_id"]].append(r)
+            return res
+
+        sets_a = _fetch_sets(conn_a)
+        sets_b = _fetch_sets(conn_b)
+
+        def set_key(s):
+            return (s["config_key"] or "", s["config_value"] or "", s["table_name"] or "")
+
+        map_a = {set_key(s): s for s in sets_a}
+        map_b = {set_key(s): s for s in sets_b}
+        all_keys = sorted(set(map_a.keys()) | set(map_b.keys()))
+
+        both_keys = [k for k in all_keys if k in map_a and k in map_b]
+        rules_a = _fetch_rules(conn_a, [map_a[k]["id"] for k in both_keys])
+        rules_b = _fetch_rules(conn_b, [map_b[k]["id"] for k in both_keys])
+
+        only_a, only_b, diff = [], [], []
+        same_count = 0
+
+        def rule_key(r):
+            return (r.get("field") or "", r.get("op") or "")
+
+        def rule_content(r):
+            return (
+                _norm_jsonish(r.get("literal_value")),
+                _norm_jsonish(r.get("literal_values")),
+                _norm_jsonish(r.get("value_source")),
+                r.get("order_idx") or 0,
+            )
+
+        for k in all_keys:
+            if k in map_a and k not in map_b:
+                sa = map_a[k]
+                sa["rules_count"] = len(_fetch_rules(conn_a, [sa["id"]]).get(sa["id"], []))
+                only_a.append(sa)
+            elif k in map_b and k not in map_a:
+                sb = map_b[k]
+                sb["rules_count"] = len(_fetch_rules(conn_b, [sb["id"]]).get(sb["id"], []))
+                only_b.append(sb)
+            else:
+                sa, sb = map_a[k], map_b[k]
+                ra = rules_a.get(sa["id"], [])
+                rb = rules_b.get(sb["id"], [])
+                a_rule_map = {rule_key(r): r for r in ra}
+                b_rule_map = {rule_key(r): r for r in rb}
+                all_rule_keys = sorted(set(a_rule_map.keys()) | set(b_rule_map.keys()))
+
+                rule_diffs = []
+                for rk in all_rule_keys:
+                    ia = a_rule_map.get(rk)
+                    ib = b_rule_map.get(rk)
+                    if ia and not ib:
+                        rule_diffs.append({
+                            "field": rk[0], "op": rk[1],
+                            "status": "only_a",
+                            "a_literal": ia.get("literal_value") or "",
+                            "a_literals": ia.get("literal_values") or "",
+                            "a_source": ia.get("value_source") or "",
+                            "a_order": ia.get("order_idx") or 0,
+                        })
+                    elif ib and not ia:
+                        rule_diffs.append({
+                            "field": rk[0], "op": rk[1],
+                            "status": "only_b",
+                            "b_literal": ib.get("literal_value") or "",
+                            "b_literals": ib.get("literal_values") or "",
+                            "b_source": ib.get("value_source") or "",
+                            "b_order": ib.get("order_idx") or 0,
+                        })
+                    elif rule_content(ia) != rule_content(ib):
+                        rule_diffs.append({
+                            "field": rk[0], "op": rk[1],
+                            "status": "different",
+                            "a_literal": ia.get("literal_value") or "",
+                            "b_literal": ib.get("literal_value") or "",
+                            "a_literals": ia.get("literal_values") or "",
+                            "b_literals": ib.get("literal_values") or "",
+                            "a_source": ia.get("value_source") or "",
+                            "b_source": ib.get("value_source") or "",
+                            "a_order": ia.get("order_idx") or 0,
+                            "b_order": ib.get("order_idx") or 0,
+                            "literal_diff": _norm_jsonish(ia.get("literal_value")) != _norm_jsonish(ib.get("literal_value")),
+                            "literals_diff": _norm_jsonish(ia.get("literal_values")) != _norm_jsonish(ib.get("literal_values")),
+                            "source_diff": _norm_jsonish(ia.get("value_source")) != _norm_jsonish(ib.get("value_source")),
+                            "order_diff": (ia.get("order_idx") or 0) != (ib.get("order_idx") or 0),
+                        })
+
+                meta_diffs = {}
+                if (sa.get("note") or "").strip() != (sb.get("note") or "").strip():
+                    meta_diffs["note"] = {"a": sa.get("note") or "", "b": sb.get("note") or ""}
+
+                if rule_diffs or meta_diffs:
+                    diff.append({
+                        "config_key": k[0],
+                        "config_value": k[1],
+                        "table_name": k[2],
+                        "a_id": sa["id"],
+                        "b_id": sb["id"],
+                        "a_rules": len(ra),
+                        "b_rules": len(rb),
+                        "diffs": meta_diffs,
+                        "rule_diffs": rule_diffs,
+                    })
+                else:
+                    same_count += 1
+
+        return {
+            "ok": True,
+            "a_key": ws_a, "a_label": label_a,
+            "b_key": ws_b, "b_label": label_b,
+            "a_total": len(sets_a),
+            "b_total": len(sets_b),
+            "only_a": only_a,
+            "only_b": only_b,
+            "same_count": same_count,
+            "diff": diff,
+        }
+    finally:
+        if conn_a:
+            conn_a.close()
+        if conn_b:
+            conn_b.close()
+
+
+def migrate_filter_rules(source: str, target: str, overwrite: bool = False) -> dict:
+    """全量迁移过滤条件配置（fin_explore_filter_rule_set + fin_explore_filter_rule）"""
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    src_conn = dst_conn = None
+    try:
+        try:
+            src_conn = _get_jst_conn(source)
+        except Exception as e:
+            return {"ok": False, "msg": f"连接源 [{src_label}] 失败: {e}"}
+        try:
+            dst_conn = _get_jst_conn(target)
+        except Exception as e:
+            return {"ok": False, "msg": f"连接目标 [{dst_label}] 失败: {e}"}
+
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, config_key, config_value, table_name, note "
+                "FROM fin_explore_filter_rule_set ORDER BY id"
+            )
+            sets = cur.fetchall()
+            cur.execute(
+                "SELECT id, rule_set_id, field, op, literal_value, "
+                "CAST(literal_values AS CHAR) AS literal_values, "
+                "value_source, order_idx "
+                "FROM fin_explore_filter_rule ORDER BY id"
+            )
+            rules = cur.fetchall()
+
+        deleted_sets = deleted_rules = 0
+        if overwrite:
+            with dst_conn.cursor() as cur:
+                cur.execute("DELETE FROM fin_explore_filter_rule")
+                deleted_rules = cur.rowcount
+                cur.execute("DELETE FROM fin_explore_filter_rule_set")
+                deleted_sets = cur.rowcount
+
+        set_id_map = {}
+        for s in sets:
+            with dst_conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO fin_explore_filter_rule_set "
+                    "(config_key, config_value, table_name, note) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (s["config_key"], s["config_value"], s["table_name"], s.get("note") or "")
+                )
+                set_id_map[s["id"]] = cur.lastrowid
+
+        r_ok = 0
+        for r in rules:
+            new_sid = set_id_map.get(r["rule_set_id"])
+            if not new_sid:
+                continue
+            with dst_conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO fin_explore_filter_rule "
+                    "(rule_set_id, field, op, literal_value, literal_values, "
+                    "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (new_sid, r["field"], r["op"],
+                     r.get("literal_value"), r.get("literal_values"),
+                     r.get("value_source"), r.get("order_idx") or 0)
+                )
+                r_ok += 1
+
+        return {
+            "ok": True,
+            "sets_count": len(set_id_map),
+            "rules_count": r_ok,
+            "deleted_sets": deleted_sets,
+            "deleted_rules": deleted_rules,
+        }
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        if src_conn:
+            src_conn.close()
+        if dst_conn:
+            dst_conn.close()
+
+
+def apply_filter_rule_set_meta(source: str, target: str,
+                               config_key: str, config_value: str, table_name: str,
+                               fields: list) -> dict:
+    """同步 rule_set 的 meta 字段（目前仅 note）"""
+    fields = [f for f in (fields or []) if f in {"note"}]
+    if not fields:
+        return {"ok": False, "msg": "未指定要同步的字段"}
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    src_conn = dst_conn = None
+    try:
+        src_conn = _get_jst_conn(source)
+        dst_conn = _get_jst_conn(target)
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT note FROM fin_explore_filter_rule_set "
+                "WHERE config_key=%s AND config_value=%s AND table_name=%s",
+                (config_key, config_value, table_name)
+            )
+            sa = cur.fetchone()
+            if not sa:
+                return {"ok": False, "msg": f"源 [{src_label}] 没有该规则集"}
+        sets = []
+        vals = []
+        if "note" in fields:
+            sets.append("note=%s")
+            vals.append(sa.get("note") or "")
+        vals.extend([config_key, config_value, table_name])
+        with dst_conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE fin_explore_filter_rule_set SET {', '.join(sets)} "
+                f"WHERE config_key=%s AND config_value=%s AND table_name=%s",
+                vals
+            )
+            if cur.rowcount == 0:
+                return {"ok": False, "msg": f"目标 [{dst_label}] 没有该规则集"}
+        return {"ok": True, "fields": fields}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        if src_conn:
+            src_conn.close()
+        if dst_conn:
+            dst_conn.close()
+
+
+def apply_filter_rule_set_full(source: str, target: str,
+                               config_key: str, config_value: str, table_name: str) -> dict:
+    """同步整个规则集（rule_set + 全部 rules）。
+    - source 有、target 没有 → target 新建 rule_set 和所有 rules
+    - source 有、target 也有 → 更新 target 的 note，并用 source 的 rules 替换 target 的 rules
+    - source 没有、target 有 → target 删除 rule_set 和它的 rules
+    - 都没有 → noop
+    """
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    src_conn = dst_conn = None
+    try:
+        src_conn = _get_jst_conn(source)
+        dst_conn = _get_jst_conn(target)
+
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, note FROM fin_explore_filter_rule_set "
+                "WHERE config_key=%s AND config_value=%s AND table_name=%s",
+                (config_key, config_value, table_name)
+            )
+            ss = cur.fetchone()
+            src_rules = []
+            if ss:
+                cur.execute(
+                    "SELECT field, op, literal_value, "
+                    "CAST(literal_values AS CHAR) AS literal_values, "
+                    "value_source, order_idx "
+                    "FROM fin_explore_filter_rule WHERE rule_set_id=%s ORDER BY order_idx",
+                    (ss["id"],)
+                )
+                src_rules = cur.fetchall()
+
+        with dst_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id FROM fin_explore_filter_rule_set "
+                "WHERE config_key=%s AND config_value=%s AND table_name=%s",
+                (config_key, config_value, table_name)
+            )
+            ds = cur.fetchone()
+
+        if not ss and not ds:
+            return {"ok": True, "action": "noop"}
+
+        if ss and not ds:
+            # 新建 rule_set + rules
+            with dst_conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO fin_explore_filter_rule_set "
+                    "(config_key, config_value, table_name, note) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (config_key, config_value, table_name, ss.get("note") or "")
+                )
+                new_sid = cur.lastrowid
+                for r in src_rules:
+                    cur.execute(
+                        "INSERT INTO fin_explore_filter_rule "
+                        "(rule_set_id, field, op, literal_value, literal_values, "
+                        "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        (new_sid, r["field"], r["op"],
+                         r.get("literal_value"), r.get("literal_values"),
+                         r.get("value_source"), r.get("order_idx") or 0)
+                    )
+            return {"ok": True, "action": "inserted", "rules_count": len(src_rules)}
+
+        if not ss and ds:
+            # 删除 rule_set + 它的 rules
+            with dst_conn.cursor() as cur:
+                cur.execute("DELETE FROM fin_explore_filter_rule WHERE rule_set_id=%s", (ds["id"],))
+                deleted_rules = cur.rowcount
+                cur.execute("DELETE FROM fin_explore_filter_rule_set WHERE id=%s", (ds["id"],))
+            return {"ok": True, "action": "deleted", "deleted_rules": deleted_rules}
+
+        # ss and ds: 同步 note + 用 src 的 rules 替换 dst 的 rules
+        with dst_conn.cursor() as cur:
+            cur.execute(
+                "UPDATE fin_explore_filter_rule_set SET note=%s WHERE id=%s",
+                (ss.get("note") or "", ds["id"])
+            )
+            cur.execute("DELETE FROM fin_explore_filter_rule WHERE rule_set_id=%s", (ds["id"],))
+            old_rules = cur.rowcount
+            for r in src_rules:
+                cur.execute(
+                    "INSERT INTO fin_explore_filter_rule "
+                    "(rule_set_id, field, op, literal_value, literal_values, "
+                    "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (ds["id"], r["field"], r["op"],
+                     r.get("literal_value"), r.get("literal_values"),
+                     r.get("value_source"), r.get("order_idx") or 0)
+                )
+        return {"ok": True, "action": "replaced",
+                "rules_count": len(src_rules), "deleted_rules": old_rules}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        if src_conn:
+            src_conn.close()
+        if dst_conn:
+            dst_conn.close()
+
+
+def apply_filter_rule(source: str, target: str,
+                      config_key: str, config_value: str, table_name: str,
+                      field: str, op: str) -> dict:
+    """同步单条 rule（按 rule_set 三元组定位 + (field, op) 匹配 rule）。
+    src 有则 upsert，src 无则 dst 删除。"""
+    src_label = WORKSPACE_LABELS.get(source, source)
+    dst_label = WORKSPACE_LABELS.get(target, target)
+    src_conn = dst_conn = None
+    try:
+        src_conn = _get_jst_conn(source)
+        dst_conn = _get_jst_conn(target)
+        with src_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id FROM fin_explore_filter_rule_set "
+                "WHERE config_key=%s AND config_value=%s AND table_name=%s",
+                (config_key, config_value, table_name)
+            )
+            ss = cur.fetchone()
+            src_rule = None
+            if ss:
+                cur.execute(
+                    "SELECT field, op, literal_value, "
+                    "CAST(literal_values AS CHAR) AS literal_values, "
+                    "value_source, order_idx FROM fin_explore_filter_rule "
+                    "WHERE rule_set_id=%s AND field=%s AND op=%s",
+                    (ss["id"], field, op)
+                )
+                src_rule = cur.fetchone()
+
+        with dst_conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute(
+                "SELECT id FROM fin_explore_filter_rule_set "
+                "WHERE config_key=%s AND config_value=%s AND table_name=%s",
+                (config_key, config_value, table_name)
+            )
+            ds = cur.fetchone()
+            if not ds:
+                return {"ok": False, "msg": f"目标 [{dst_label}] 没有该规则集"}
+            cur.execute(
+                "SELECT id FROM fin_explore_filter_rule "
+                "WHERE rule_set_id=%s AND field=%s AND op=%s",
+                (ds["id"], field, op)
+            )
+            dst_rule = cur.fetchone()
+
+        with dst_conn.cursor() as cur:
+            if src_rule and dst_rule:
+                cur.execute(
+                    "UPDATE fin_explore_filter_rule SET literal_value=%s, literal_values=%s, "
+                    "value_source=%s, order_idx=%s WHERE id=%s",
+                    (src_rule.get("literal_value"), src_rule.get("literal_values"),
+                     src_rule.get("value_source"), src_rule.get("order_idx") or 0,
+                     dst_rule["id"])
+                )
+                action = "updated"
+            elif src_rule and not dst_rule:
+                cur.execute(
+                    "INSERT INTO fin_explore_filter_rule "
+                    "(rule_set_id, field, op, literal_value, literal_values, "
+                    "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (ds["id"], field, op, src_rule.get("literal_value"),
+                     src_rule.get("literal_values"), src_rule.get("value_source"),
+                     src_rule.get("order_idx") or 0)
+                )
+                action = "inserted"
+            elif not src_rule and dst_rule:
+                cur.execute("DELETE FROM fin_explore_filter_rule WHERE id=%s", (dst_rule["id"],))
+                action = "deleted"
+            else:
+                return {"ok": True, "action": "noop"}
+        return {"ok": True, "action": action}
+    except Exception as e:
+        return {"ok": False, "msg": str(e)}
+    finally:
+        if src_conn:
+            src_conn.close()
+        if dst_conn:
+            dst_conn.close()
 
 
 def migrate_system_config(source: str, target: str) -> dict:
