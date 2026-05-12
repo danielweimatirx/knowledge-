@@ -170,9 +170,9 @@
       <h1>NL2SQL <span>知识库</span></h1>
     </div>
     <nav class="sidebar-nav">
-      <div class="nav-section">
+      <div class="nav-section" style="display:none">
         <div class="nav-section-title">V1 知识库</div>
-        <button class="nav-item active" onclick="switchPage('v1-kb', this)">
+        <button class="nav-item" onclick="switchPage('v1-kb', this)">
           <span class="nav-icon">📚</span>
           <span>知识库管理</span>
           <span class="nav-badge" id="v1KbCount">-</span>
@@ -188,7 +188,7 @@
       </div>
       <div class="nav-section">
         <div class="nav-section-title">V2 语义模型</div>
-        <button class="nav-item v2" onclick="switchPage('v2-models', this)">
+        <button class="nav-item v2 active" onclick="switchPage('v2-models', this)">
           <span class="nav-icon">🧠</span>
           <span>语义模型</span>
           <span class="nav-badge" id="v2ModelCount">-</span>
@@ -228,7 +228,7 @@
   <main class="main-content">
 
     <!-- ==================== V1 知识库管理 ==================== -->
-    <div class="page-content active" id="page-v1-kb">
+    <div class="page-content" id="page-v1-kb">
       <div class="page-header">
         <h2>知识库管理 <span class="version-tag v1">V1</span></h2>
       </div>
@@ -371,7 +371,7 @@
     </div>
 
     <!-- ==================== V2 语义模型 ==================== -->
-    <div class="page-content" id="page-v2-models">
+    <div class="page-content active" id="page-v2-models">
       <div class="page-header">
         <h2>语义模型 <span class="version-tag v2">V2</span></h2>
       </div>
@@ -720,7 +720,6 @@
       <select id="frValueSource" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
         <option value="">无 (使用字面值)</option>
         <option value="selected_ids">selected_ids (用户选择)</option>
-        <option value="code_group_code">code_group_code (编码组映射)</option>
       </select>
     </div>
     <div class="field">
@@ -3331,9 +3330,9 @@ if (savedPage) {
   sessionStorage.removeItem('activePage');
   const btn = document.querySelector(`.nav-item[onclick*="${savedPage}"]`);
   if (btn) switchPage(savedPage, btn);
-  else loadTableComments().then(() => loadKbList());
+  else loadTableComments().then(() => loadV2List());
 } else {
-  loadTableComments().then(() => loadKbList());
+  loadTableComments().then(() => loadV2List());
 }
 </script>
 
