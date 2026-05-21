@@ -213,6 +213,18 @@
           <span>系统开关</span>
         </button>
       </div>
+      <div class="nav-section">
+        <div class="nav-section-title">合同智能体</div>
+        <button class="nav-item v2" onclick="switchPage('contract-sem', this)">
+          <span class="nav-icon">📑</span>
+          <span>语义模型</span>
+          <span class="nav-badge" id="contractSemCount">-</span>
+        </button>
+        <button class="nav-item v2" onclick="switchPage('contract-migrate', this)">
+          <span class="nav-icon">🔄</span>
+          <span>迁移工具</span>
+        </button>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <label>工作区</label>
@@ -458,6 +470,95 @@
       </div>
     </div>
 
+    <!-- ==================== 合同智能体 语义模型 ==================== -->
+    <div class="page-content" id="page-contract-sem">
+      <div class="page-header">
+        <h2>合同智能体 · 语义模型 <span class="version-tag v2">V2</span></h2>
+      </div>
+      <div class="container">
+        <div class="kb-toolbar">
+          <select id="contractWs" onchange="loadContractSemList()" style="font-family:inherit;font-size:0.85rem;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
+            <option value="contract_dev">合同问询</option>
+            <option value="contract_prod">MOI</option>
+          </select>
+          <input type="text" id="contractSemSearch" class="kb-search-input" placeholder="搜索模型名称…" oninput="applyContractSemFilter()" style="margin-left:12px">
+          <div style="margin-left:auto;display:flex;gap:10px">
+            <button class="btn-ghost" onclick="loadContractSemList()">刷新</button>
+          </div>
+        </div>
+        <div id="contractSemSummary" class="kb-summary" style="display:none"></div>
+        <div id="contractSemGrid"></div>
+      </div>
+    </div>
+
+    <!-- ==================== 合同智能体 迁移工具 ==================== -->
+    <div class="page-content" id="page-contract-migrate">
+      <div class="page-header">
+        <h2>合同智能体 · 迁移工具 <span class="version-tag v2">V2</span></h2>
+      </div>
+      <div class="container">
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">跨工作区迁移（合同语义模型）</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="ctMigSrcWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="ctMigSrcTrigger" onclick="toggleCtMigDropdown('src')">
+                <span class="dbs-text" id="ctMigSrcDisplay">合同问询</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="ctMigSrcDropdown">
+                <div class="dbs-options" id="ctMigSrcOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">→</span>
+            <div class="db-select" id="ctMigDstWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="ctMigDstTrigger" onclick="toggleCtMigDropdown('dst')">
+                <span class="dbs-text" id="ctMigDstDisplay">MOI</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="ctMigDstDropdown">
+                <div class="dbs-options" id="ctMigDstOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary v2" id="btnMigrateCt" onclick="runCtMigration()">执行迁移</button>
+            <label class="checkbox-wrap" style="margin-left:4px">
+              <input type="checkbox" id="chkMigCtOverwrite"> 覆盖（清空目标后写入）
+            </label>
+            <span id="migrateCtMsg" class="meta"></span>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-bottom:8px">将迁移目标工作区的所有语义模型及其条目（semantic_models / semantic_entries）。</div>
+          <div id="migrateCtResult" style="display:none"></div>
+        </div>
+
+        <div class="migrate-panel" style="margin-bottom:20px">
+          <h3 style="font-family:var(--font-display);font-size:1rem;font-weight:400;margin-bottom:16px;color:var(--text)">语义模型差异对比</h3>
+          <div class="migrate-controls" style="margin-bottom:12px">
+            <div class="db-select" id="ctDiffAWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="ctDiffATrigger" onclick="toggleCtDiffDropdown('a')">
+                <span class="dbs-text" id="ctDiffADisplay">合同问询</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="ctDiffADropdown">
+                <div class="dbs-options" id="ctDiffAOptions"></div>
+              </div>
+            </div>
+            <span style="font-size:0.85rem;color:var(--muted);padding:0 4px">⇄</span>
+            <div class="db-select" id="ctDiffBWrap" style="min-width:180px">
+              <div class="dbs-trigger" id="ctDiffBTrigger" onclick="toggleCtDiffDropdown('b')">
+                <span class="dbs-text" id="ctDiffBDisplay">MOI</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style="flex-shrink:0"><path d="M3 5l3 3 3-3" stroke="currentColor" fill="none" stroke-width="1.5"/></svg>
+              </div>
+              <div class="dbs-dropdown" id="ctDiffBDropdown">
+                <div class="dbs-options" id="ctDiffBOptions"></div>
+              </div>
+            </div>
+            <button class="btn-primary v2" onclick="runCtCompare()">对比</button>
+            <span id="ctDiffMsg" class="meta"></span>
+          </div>
+          <div id="ctDiffResult" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ==================== 问数过滤条件配置 ==================== -->
     <div class="page-content" id="page-filter-rules">
       <div class="page-header">
@@ -645,14 +746,15 @@
 <div class="modal-overlay" id="frModal">
   <div class="modal" style="width:560px">
     <h2 id="frModalTitle">新增过滤规则</h2>
+    <div id="frConfigKeyLabel" style="font-size:0.78rem;color:var(--muted);margin:-8px 0 16px 0">配置类型: <span id="frConfigKeyLabelText" style="color:var(--text);font-weight:500">—</span></div>
     <input type="hidden" id="frEditId">
-    <div class="field">
-      <label>配置类型 *</label>
-      <select id="frConfigKey" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
+    <div class="field" style="display:none">
+      <select id="frConfigKey">
         <option value="data_category">数据口径 (data_category)</option>
         <option value="filter_conditions">排除非关联交易 (filter_conditions)</option>
         <option value="data_scope_company">数据范围-公司 (data_scope_company)</option>
         <option value="data_scope_profit_center">数据范围-事业部 (data_scope_profit_center)</option>
+        <option value="data_scope_dept">数据范围-部门 (data_scope_dept)</option>
       </select>
     </div>
     <div class="field">
@@ -721,6 +823,14 @@
         <option value="">无 (使用字面值)</option>
         <option value="selected_ids">selected_ids (用户选择)</option>
       </select>
+    </div>
+    <div class="field">
+      <label>分桶 (apply_bucket)</label>
+      <select id="frApplyBucket" style="width:100%;font-family:inherit;font-size:0.88rem;padding:10px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);color:var(--text)">
+        <option value="values">values（按值过滤，默认）</option>
+        <option value="code">code（按编码组过滤）</option>
+      </select>
+      <div style="font-size:0.7rem;color:var(--muted);margin-top:4px">fin 内部分桶，影响 SQL 生成路径，不下发到客户端</div>
     </div>
     <div class="field">
       <label>说明</label>
@@ -1046,6 +1156,7 @@ function switchPage(page, btn) {
   if (page === 'v2-models' && !v2ListData.length) loadV2List();
   if (page === 'filter-rules' && !filterRulesLoaded) loadFilterRules();
   if (page === 'sys-config') loadSysConfig();
+  if (page === 'contract-sem' && !contractSemData.length) loadContractSemList();
 }
 
 function onTargetChange() {
@@ -2145,6 +2256,335 @@ async function syncV2Entry(srcKey, dstKey, modelName, kind, keyName) {
 }
 
 
+// ==================== 合同智能体：跨工作区迁移 + 差异对比 ====================
+const CONTRACT_WORKSPACES = [
+  { key: 'contract_dev',  label: '合同问询' },
+  { key: 'contract_prod', label: 'MOI' },
+];
+function ctLabel(key) { const w = CONTRACT_WORKSPACES.find(w => w.key === key); return w ? w.label : key; }
+
+let ctMigSrc = 'contract_dev', ctMigDst = 'contract_prod';
+let ctMigSrcOpen = false, ctMigDstOpen = false;
+
+function renderCtMigOptions(which) {
+  const container = document.getElementById(which === 'src' ? 'ctMigSrcOptions' : 'ctMigDstOptions');
+  const current = which === 'src' ? ctMigSrc : ctMigDst;
+  container.innerHTML = CONTRACT_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === current ? ' selected' : ''}" onclick="selectCtMigWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleCtMigDropdown(which) {
+  if (which === 'src') {
+    ctMigSrcOpen = !ctMigSrcOpen;
+    document.getElementById('ctMigSrcDropdown').classList.toggle('open', ctMigSrcOpen);
+    document.getElementById('ctMigSrcTrigger').classList.toggle('open', ctMigSrcOpen);
+    if (ctMigSrcOpen) renderCtMigOptions('src');
+  } else {
+    ctMigDstOpen = !ctMigDstOpen;
+    document.getElementById('ctMigDstDropdown').classList.toggle('open', ctMigDstOpen);
+    document.getElementById('ctMigDstTrigger').classList.toggle('open', ctMigDstOpen);
+    if (ctMigDstOpen) renderCtMigOptions('dst');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (ctMigSrcOpen && !e.target.closest('#ctMigSrcWrap')) {
+    ctMigSrcOpen = false;
+    document.getElementById('ctMigSrcDropdown').classList.remove('open');
+    document.getElementById('ctMigSrcTrigger').classList.remove('open');
+  }
+  if (ctMigDstOpen && !e.target.closest('#ctMigDstWrap')) {
+    ctMigDstOpen = false;
+    document.getElementById('ctMigDstDropdown').classList.remove('open');
+    document.getElementById('ctMigDstTrigger').classList.remove('open');
+  }
+});
+
+function selectCtMigWs(which, key) {
+  const label = ctLabel(key);
+  if (which === 'src') {
+    ctMigSrc = key;
+    document.getElementById('ctMigSrcDisplay').textContent = label;
+    ctMigSrcOpen = false;
+    document.getElementById('ctMigSrcDropdown').classList.remove('open');
+    document.getElementById('ctMigSrcTrigger').classList.remove('open');
+  } else {
+    ctMigDst = key;
+    document.getElementById('ctMigDstDisplay').textContent = label;
+    ctMigDstOpen = false;
+    document.getElementById('ctMigDstDropdown').classList.remove('open');
+    document.getElementById('ctMigDstTrigger').classList.remove('open');
+  }
+}
+
+async function runCtMigration() {
+  if (ctMigSrc === ctMigDst) { showDialog('源和目标不能相同'); return; }
+  const srcLabel = ctLabel(ctMigSrc);
+  const dstLabel = ctLabel(ctMigDst);
+  const overwrite = document.getElementById('chkMigCtOverwrite').checked;
+  const overwriteWarn = overwrite ? '\n\n⚠️ 覆盖模式：将先删除目标库的全部语义模型与条目！' : '';
+  if (!await showDialog(`确定将 [合同语义模型] 从「${srcLabel}」迁移到「${dstLabel}」？${overwriteWarn}`, {type:'confirm'})) return;
+
+  const btn = document.getElementById('btnMigrateCt');
+  const msg = document.getElementById('migrateCtMsg');
+  const resultDiv = document.getElementById('migrateCtResult');
+  btn.disabled = true;
+  msg.textContent = '迁移中…';
+  resultDiv.style.display = 'none';
+  try {
+    const res = await fetch('/api/migrate-v2', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: ctMigSrc, target: ctMigDst, overwrite: overwrite }),
+    });
+    const d = await res.json();
+    const line = d.ok
+      ? `✓ 语义模型: 迁移 ${d.models_count} 个模型, ${d.entries_count} 条条目${d.deleted_models ? ` (已清空旧数据: ${d.deleted_models}模型/${d.deleted_entries}条目)` : ''}`
+      : `✗ 语义模型: ${d.msg}`;
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `
+      <div style="background:var(--card);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:16px;font-size:0.85rem">
+        <div style="font-weight:500;margin-bottom:10px;color:var(--purple)">迁移结果 (${escHtml(srcLabel)} → ${escHtml(dstLabel)})</div>
+        <div style="padding:4px 0;${line.startsWith('✗') ? 'color:var(--clay)' : ''}">${escHtml(line)}</div>
+      </div>`;
+    btn.disabled = false;
+  } catch(e) { msg.textContent = ''; showDialog('迁移失败: ' + e.message); btn.disabled = false; }
+}
+
+let ctDiffA = 'contract_dev', ctDiffB = 'contract_prod';
+let ctDiffAOpen = false, ctDiffBOpen = false;
+let ctDiffSnapshot = null;
+
+function renderCtDiffOptions(which) {
+  const container = document.getElementById(which === 'a' ? 'ctDiffAOptions' : 'ctDiffBOptions');
+  const current = which === 'a' ? ctDiffA : ctDiffB;
+  container.innerHTML = CONTRACT_WORKSPACES.map(w =>
+    `<div class="dbs-option${w.key === current ? ' selected' : ''}" onclick="selectCtDiffWs('${which}','${w.key}')">${escHtml(w.label)}</div>`
+  ).join('');
+}
+
+function toggleCtDiffDropdown(which) {
+  if (which === 'a') {
+    ctDiffAOpen = !ctDiffAOpen;
+    document.getElementById('ctDiffADropdown').classList.toggle('open', ctDiffAOpen);
+    document.getElementById('ctDiffATrigger').classList.toggle('open', ctDiffAOpen);
+    if (ctDiffAOpen) renderCtDiffOptions('a');
+  } else {
+    ctDiffBOpen = !ctDiffBOpen;
+    document.getElementById('ctDiffBDropdown').classList.toggle('open', ctDiffBOpen);
+    document.getElementById('ctDiffBTrigger').classList.toggle('open', ctDiffBOpen);
+    if (ctDiffBOpen) renderCtDiffOptions('b');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (ctDiffAOpen && !e.target.closest('#ctDiffAWrap')) {
+    ctDiffAOpen = false;
+    document.getElementById('ctDiffADropdown').classList.remove('open');
+    document.getElementById('ctDiffATrigger').classList.remove('open');
+  }
+  if (ctDiffBOpen && !e.target.closest('#ctDiffBWrap')) {
+    ctDiffBOpen = false;
+    document.getElementById('ctDiffBDropdown').classList.remove('open');
+    document.getElementById('ctDiffBTrigger').classList.remove('open');
+  }
+});
+
+function selectCtDiffWs(which, key) {
+  const label = ctLabel(key);
+  if (which === 'a') {
+    ctDiffA = key;
+    document.getElementById('ctDiffADisplay').textContent = label;
+    ctDiffAOpen = false;
+    document.getElementById('ctDiffADropdown').classList.remove('open');
+    document.getElementById('ctDiffATrigger').classList.remove('open');
+  } else {
+    ctDiffB = key;
+    document.getElementById('ctDiffBDisplay').textContent = label;
+    ctDiffBOpen = false;
+    document.getElementById('ctDiffBDropdown').classList.remove('open');
+    document.getElementById('ctDiffBTrigger').classList.remove('open');
+  }
+}
+
+async function runCtCompare() {
+  if (ctDiffA === ctDiffB) { showDialog('两个工作区不能相同'); return; }
+  const msg = document.getElementById('ctDiffMsg');
+  const resultDiv = document.getElementById('ctDiffResult');
+  msg.textContent = '对比中…';
+  resultDiv.style.display = 'none';
+  try {
+    const res = await fetch('/api/compare-v2', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ a: ctDiffA, b: ctDiffB }),
+    });
+    const d = await res.json();
+    if (!d.ok) { msg.textContent = ''; showDialog('对比失败: ' + d.msg); return; }
+    msg.textContent = '';
+    resultDiv.style.display = 'block';
+    ctDiffSnapshot = d;
+    renderCtDiffResult();
+  } catch(e) { msg.textContent = ''; showDialog('对比失败: ' + e.message); }
+}
+
+function renderCtDiffResult() {
+  const d = ctDiffSnapshot;
+  if (!d) return;
+  const resultDiv = document.getElementById('ctDiffResult');
+  const aL = escHtml(d.a_label), bL = escHtml(d.b_label);
+  const aKey = d.a_key, bKey = d.b_key;
+  const bothTotal = (d.same_count || 0) + d.diff.length;
+  let html = `<div style="font-size:0.82rem;margin-bottom:14px;display:flex;gap:20px;flex-wrap:wrap">
+    <span><b style="color:var(--purple)">${aL}</b>: ${d.a_total} 个模型</span>
+    <span><b style="color:var(--clay)">${bL}</b>: ${d.b_total} 个模型</span>
+    <span>共同: ${bothTotal} 个（一致 ${d.same_count || 0}，有差异 ${d.diff.length}）</span>
+  </div>`;
+
+  if (d.only_a.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--purple);margin-bottom:6px">仅在 ${aL} (${d.only_a.length})</div>`;
+    d.only_a.forEach(m => {
+      html += `<div style="padding:8px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+        <div style="font-family:var(--font-mono);font-weight:500">${escHtml(m.name)} <span style="color:var(--muted);font-weight:400">#${m.id} · ${m.entries_count}条</span></div>
+        ${m.description ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:4px 0 0 0">${escHtml(m.description)}</div>` : ''}
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px">说明：单点同步只支持两边都已存在的模型；这条整模型缺失，请用上方"跨工作区迁移"。</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  if (d.only_b.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--clay);margin-bottom:6px">仅在 ${bL} (${d.only_b.length})</div>`;
+    d.only_b.forEach(m => {
+      html += `<div style="padding:8px 0;font-size:0.8rem;border-bottom:1px solid var(--border-light)">
+        <div style="font-family:var(--font-mono);font-weight:500">${escHtml(m.name)} <span style="color:var(--muted);font-weight:400">#${m.id} · ${m.entries_count}条</span></div>
+        ${m.description ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin:4px 0 0 0">${escHtml(m.description)}</div>` : ''}
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:4px">说明：单点同步只支持两边都已存在的模型；这条整模型缺失，请用上方"跨工作区迁移"。</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  if (d.diff.length) {
+    html += `<div style="margin-bottom:14px"><div style="font-size:0.78rem;font-weight:500;color:var(--warm);margin-bottom:6px">内容有差异 (${d.diff.length})</div>`;
+    d.diff.forEach(df => {
+      const nameEsc = v2EscArg(df.name);
+      html += `<div style="padding:14px 0;border-bottom:1px solid var(--border-light)">
+        <div style="font-size:0.85rem;font-family:var(--font-mono);font-weight:600;margin-bottom:8px">${escHtml(df.name)} <span style="color:var(--muted);font-weight:400">${aL} #${df.a_id} (${df.a_entries}条) / ${bL} #${df.b_id} (${df.b_entries}条)</span></div>`;
+
+      const diffs = df.diffs || {};
+      if (diffs.description) {
+        html += `<div style="margin:8px 0 8px 12px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">📝 描述不同</div>
+          ${v2RenderDiffPair(aL, bL, diffs.description.a, diffs.description.b)}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtModelMeta('${aKey}','${bKey}','${nameEsc}',['description'])">以 ${aL} 为准 → ${bL}</button>
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtModelMeta('${bKey}','${aKey}','${nameEsc}',['description'])">${aL} ← 以 ${bL} 为准</button>
+          </div>
+        </div>`;
+      }
+      if (diffs.tables) {
+        const tablesA = parseTableNames(diffs.tables.a);
+        const tablesB = parseTableNames(diffs.tables.b);
+        const onlyInA = tablesA.filter(t => !tablesB.includes(t));
+        const onlyInB = tablesB.filter(t => !tablesA.includes(t));
+        const chip = (n, color) => `<span style="background:var(--${color}-glow, var(--bg-deep));color:var(--${color});padding:2px 8px;border-radius:10px;font-size:0.68rem;font-family:var(--font-mono);margin:2px">${escHtml(n)}</span>`;
+        html += `<div style="margin:8px 0 8px 12px;padding:8px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">📊 关联表不同</div>
+          <div style="font-size:0.72rem;margin-bottom:4px"><b style="color:var(--purple)">${aL}</b> (${tablesA.length}): ${tablesA.length ? tablesA.map(t => chip(t, 'purple')).join('') : '<span style="color:var(--muted)">(无)</span>'}</div>
+          <div style="font-size:0.72rem;margin-bottom:4px"><b style="color:var(--clay)">${bL}</b> (${tablesB.length}): ${tablesB.length ? tablesB.map(t => chip(t, 'clay')).join('') : '<span style="color:var(--muted)">(无)</span>'}</div>
+          ${onlyInA.length ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:2px">仅 ${aL}: ${onlyInA.map(escHtml).join(', ')}</div>` : ''}
+          ${onlyInB.length ? `<div style="font-size:0.7rem;color:var(--muted)">仅 ${bL}: ${onlyInB.map(escHtml).join(', ')}</div>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtModelMeta('${aKey}','${bKey}','${nameEsc}',['tables'])">以 ${aL} 为准 → ${bL}</button>
+            <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtModelMeta('${bKey}','${aKey}','${nameEsc}',['tables'])">${aL} ← 以 ${bL} 为准</button>
+          </div>
+        </div>`;
+      }
+
+      const ed = df.entry_diffs || [];
+      if (ed.length) {
+        html += `<div style="margin:8px 0 0 12px">
+          <div style="font-size:0.78rem;color:var(--warm);margin-bottom:6px">🔧 条目差异 (${ed.length})</div>`;
+        ed.forEach(id => {
+          const kindEsc = v2EscArg(id.kind);
+          const keyEsc = v2EscArg(id.key);
+          const head = `<span style="font-family:var(--font-mono);font-size:0.78rem"><span style="color:var(--muted)">[${escHtml(id.kind)}]</span> <b>${escHtml(id.key)}</b></span>`;
+          let badge = '', body = '', buttons = '';
+          if (id.status === 'only_a') {
+            badge = `<span style="background:var(--accent-glow);color:var(--purple);padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">仅 ${aL}</span>`;
+            body = v2RenderDiffBox(`${aL} · spec`, id.a_spec) + (id.a_tables && id.a_tables !== '[]' && id.a_tables !== 'null' ? v2RenderDiffBox(`${aL} · tables`, id.a_tables) : '');
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtEntry('${aKey}','${bKey}','${nameEsc}','${kindEsc}','${keyEsc}')">复制 ${aL} → ${bL} (新增)</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtEntry('${bKey}','${aKey}','${nameEsc}','${kindEsc}','${keyEsc}')">${aL} ← 以 ${bL} 为准 (从 ${aL} 删除)</button>`;
+          } else if (id.status === 'only_b') {
+            badge = `<span style="background:var(--clay-light);color:var(--clay);padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">仅 ${bL}</span>`;
+            body = v2RenderDiffBox(`${bL} · spec`, id.b_spec) + (id.b_tables && id.b_tables !== '[]' && id.b_tables !== 'null' ? v2RenderDiffBox(`${bL} · tables`, id.b_tables) : '');
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtEntry('${aKey}','${bKey}','${nameEsc}','${kindEsc}','${keyEsc}')">以 ${aL} 为准 → ${bL} (从 ${bL} 删除)</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtEntry('${bKey}','${aKey}','${nameEsc}','${kindEsc}','${keyEsc}')">复制 ${bL} → ${aL} (新增)</button>`;
+          } else {
+            badge = `<span style="background:#fff3cd;color:#856404;padding:2px 6px;border-radius:8px;font-size:0.65rem;margin-left:6px">内容不同</span>`;
+            const subs = [];
+            if (id.spec_diff) subs.push(`spec`);
+            if (id.tables_diff) subs.push(`tables`);
+            const subInfo = subs.length ? `<div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px">差异字段: ${subs.join(', ')}（<span class="v2-diff-del">红色</span> 仅 ${aL} 有，<span class="v2-diff-ins">绿色</span> 仅 ${bL} 有）</div>` : '';
+            body = subInfo
+                 + (id.spec_diff ? v2RenderDiffPair(`${aL} · spec`, `${bL} · spec`, id.a_spec, id.b_spec) : '')
+                 + (id.tables_diff ? v2RenderDiffPair(`${aL} · tables`, `${bL} · tables`, id.a_tables, id.b_tables) : '');
+            buttons = `<button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtEntry('${aKey}','${bKey}','${nameEsc}','${kindEsc}','${keyEsc}')">以 ${aL} 为准 → ${bL}</button>
+                       <button class="btn-ghost" style="font-size:0.68rem;padding:3px 10px" onclick="syncCtEntry('${bKey}','${aKey}','${nameEsc}','${kindEsc}','${keyEsc}')">${aL} ← 以 ${bL} 为准</button>`;
+          }
+          html += `<div style="padding:8px;margin-bottom:6px;background:var(--bg);border-radius:6px;border:1px solid var(--border-light)">
+            <div style="margin-bottom:6px">${head}${badge}</div>
+            ${body}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${buttons}</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+    });
+    html += '</div>';
+  }
+
+  if (!d.only_a.length && !d.only_b.length && !d.diff.length) {
+    html += `<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.85rem">两个工作区的语义模型完全一致 ✓</div>`;
+  }
+
+  resultDiv.innerHTML = html;
+}
+
+async function syncCtModelMeta(srcKey, dstKey, modelName, fields) {
+  const srcLabel = ctLabel(srcKey);
+  const dstLabel = ctLabel(dstKey);
+  const fieldNames = fields.map(f => f === 'description' ? '描述' : (f === 'tables' ? '关联表' : f)).join('、');
+  if (!await showDialog(`确定将模型「${modelName}」的【${fieldNames}】从「${srcLabel}」覆盖到「${dstLabel}」？`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-v2-model-meta', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: srcKey, target: dstKey, model_name: modelName, fields }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    await runCtCompare();
+  } catch(e) { showDialog('同步失败: ' + e.message); }
+}
+
+async function syncCtEntry(srcKey, dstKey, modelName, kind, keyName) {
+  const srcLabel = ctLabel(srcKey);
+  const dstLabel = ctLabel(dstKey);
+  if (!await showDialog(`确定将模型「${modelName}」的条目 [${kind}] ${keyName} 从「${srcLabel}」同步到「${dstLabel}」？\n\n（src 有则 upsert，src 无则 dst 删除）`, {type:'confirm'})) return;
+  try {
+    const res = await fetch('/api/sync-v2-entry', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: srcKey, target: dstKey, model_name: modelName, kind, key_name: keyName }),
+    });
+    const d = await res.json();
+    if (!d.ok) { showDialog('同步失败: ' + d.msg); return; }
+    await runCtCompare();
+  } catch(e) { showDialog('同步失败: ' + e.message); }
+}
+
+
 // ==================== 过滤条件迁移：跨工作区迁移 ====================
 let frMigSrc = 'remote', frMigDst = 'portal';
 let frMigSrcOpen = false, frMigDstOpen = false;
@@ -2779,6 +3219,68 @@ function renderV2Grid(data) {
   grid.innerHTML = html;
 }
 
+
+// ==================== 合同智能体 · 语义模型（只读查看） ====================
+let contractSemData = [];
+
+async function loadContractSemList() {
+  const target = document.getElementById('contractWs').value;
+  const grid = document.getElementById('contractSemGrid');
+  const summary = document.getElementById('contractSemSummary');
+  grid.innerHTML = '<div class="empty-msg">加载中…</div>';
+  summary.style.display = 'none';
+  try {
+    const res = await fetch(`/api/v2/models?target=${target}`);
+    const d = await res.json();
+    if (!d.ok) { grid.innerHTML = `<div class="empty-msg">❌ ${d.msg}</div>`; return; }
+    contractSemData = d.data || [];
+    document.getElementById('contractSemCount').textContent = contractSemData.length;
+    if (!contractSemData.length) { grid.innerHTML = '<div class="empty-msg">暂无语义模型</div>'; return; }
+
+    const totalModels = contractSemData.length;
+    const totalEntries = contractSemData.reduce((s, m) => s + (m.entry_count || 0), 0);
+    const allTables = new Set();
+    contractSemData.forEach(m => { try { JSON.parse(m.tables_json || '[]').forEach(t => allTables.add(t)); } catch(e){} });
+    summary.innerHTML = `
+      <div class="stat"><div class="stat-num v2">${totalModels}</div><div class="stat-label">语义模型</div></div>
+      <div class="stat"><div class="stat-num v2">${totalEntries}</div><div class="stat-label">语义条目</div></div>
+      <div class="stat"><div class="stat-num v2">${allTables.size}</div><div class="stat-label">关联表</div></div>`;
+    summary.style.display = 'flex';
+    renderContractSemGrid(contractSemData);
+  } catch(e) { grid.innerHTML = `<div class="empty-msg">❌ ${e.message}</div>`; }
+}
+
+function applyContractSemFilter() {
+  const q = document.getElementById('contractSemSearch').value.toLowerCase().trim();
+  renderContractSemGrid(contractSemData.filter(m => !q || m.name.toLowerCase().includes(q)));
+}
+
+function renderContractSemGrid(data) {
+  const grid = document.getElementById('contractSemGrid');
+  const target = document.getElementById('contractWs').value;
+  if (!data.length) { grid.innerHTML = '<div class="empty-msg">无匹配结果</div>'; return; }
+  let html = '<div class="kb-grid">';
+  data.forEach(m => {
+    let tables = [];
+    try { tables = JSON.parse(m.tables_json || '[]'); } catch(e) {}
+    html += `
+      <div class="kb-card v2">
+        <div onclick="location.href='/v2/model/${m.id}?target=${target}'" style="flex:1;cursor:pointer">
+          <h3>${escHtml(m.name)}<span class="kid">#${m.id}</span></h3>
+          <div class="desc">${escHtml(m.description || '暂无描述')}</div>
+          <div class="card-meta">
+            <span class="badge-sm badge-purple">${m.entry_count} 条目</span>
+            <span class="badge-sm badge-blue">${tables.length} 张表</span>
+          </div>
+          ${tables.length ? `<div class="table-tags">${tables.slice(0,5).map(t => `<span class="table-tag">${escHtml(t)}</span>`).join('')}${tables.length > 5 ? `<span class="meta">+${tables.length-5}</span>` : ''}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+
 function openV2Modal(model) {
   document.getElementById('v2ModalTitle').textContent = model ? '编辑语义模型' : '新增语义模型';
   document.getElementById('v2EditId').value = model ? model.id : '';
@@ -2933,6 +3435,7 @@ const FR_META = {
   filter_conditions:        { icon: '🔍', title: '排除非关联交易',     color: 'accent', desc: '配置数据过滤规则，如排除内部关联交易数据。' },
   data_scope_company:       { icon: '🏢', title: '数据范围 — 按公司',   color: 'green',  desc: '按公司维度限定统计范围，运行时由用户选择具体公司代码。' },
   data_scope_profit_center: { icon: '🏭', title: '数据范围 — 按事业部', color: 'purple', desc: '按事业部/利润中心维度限定统计范围，运行时由用户选择具体事业部。' },
+  data_scope_dept:          { icon: '🏬', title: '数据范围 — 按部门',   color: 'green',  desc: '按部门维度限定统计范围，运行时由用户选择具体部门。' },
 };
 
 function frFmtOp(op) {
@@ -2953,6 +3456,12 @@ function frFmtSource(r) {
   if (r.value_source === 'selected_ids') return badge('用户选择');
   if (r.value_source === 'code_group_code') return badge('编码组映射');
   return '<span style="color:var(--clay)">—</span>';
+}
+
+function frFmtBucket(r) {
+  const b = r.apply_bucket || 'values';
+  if (b === 'code') return `<span style="font-size:0.72rem;padding:2px 8px;border-radius:4px;background:rgba(120,90,180,0.15);color:var(--purple);font-family:var(--font-mono)">code</span>`;
+  return `<code style="color:var(--muted);font-size:0.72rem">${escHtml(b)}</code>`;
 }
 
 async function loadFilterRules() {
@@ -2979,7 +3488,7 @@ async function loadFilterRules() {
       <div class="stat"><div class="stat-val">${totalRules}</div><div class="stat-label">过滤规则</div></div>
       <div class="stat"><div class="stat-val">${tables.size}</div><div class="stat-label">涉及表</div></div>`;
 
-    const order = ['data_category','filter_conditions','data_scope_company','data_scope_profit_center'];
+    const order = ['data_category','filter_conditions','data_scope_company','data_scope_profit_center','data_scope_dept'];
     const sorted = order.filter(k=>data[k]).concat(keys.filter(k=>!order.includes(k)));
 
     let html = '';
@@ -2995,7 +3504,7 @@ async function loadFilterRules() {
       </div>`;
       if (m.desc) html += `<div style="font-size:0.82rem;color:var(--clay);margin-bottom:12px;line-height:1.5">${m.desc}</div>`;
 
-      html += `<table class="dtable"><thead><tr><th>表名</th><th>配置值</th><th>字段</th><th>操作符</th><th>过滤值</th><th>值来源</th><th>说明</th><th style="width:60px"></th></tr></thead><tbody>`;
+      html += `<table class="dtable"><thead><tr><th>表名</th><th>配置值</th><th>字段</th><th>操作符</th><th>过滤值</th><th>值来源</th><th>分桶</th><th>说明</th><th style="width:60px"></th></tr></thead><tbody>`;
       for (const rs of items) {
         const rules = rs.rules || [];
         const rsIdx = `_fr_${rs.id}`;
@@ -3005,7 +3514,7 @@ async function loadFilterRules() {
           <button class="btn-ghost" style="padding:4px 6px;font-size:1rem;line-height:1" onclick="deleteFrRule(${rs.id})" title="删除">🗑️</button>
         </div>`;
         if (!rules.length) {
-          html += `<tr><td><code>${escHtml(rs.table_name)}</code></td><td>${escHtml(rs.config_value)}</td><td colspan="4" style="color:var(--clay)">（无具体规则）</td><td style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td><td>${actionBtns}</td></tr>`;
+          html += `<tr><td><code>${escHtml(rs.table_name)}</code></td><td>${escHtml(rs.config_value)}</td><td colspan="5" style="color:var(--clay)">（无具体规则）</td><td style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td><td>${actionBtns}</td></tr>`;
         } else {
           for (let i=0;i<rules.length;i++) {
             const r = rules[i];
@@ -3018,6 +3527,7 @@ async function loadFilterRules() {
             html += `<td><code style="color:var(--purple)">${frFmtOp(r.op)}</code></td>`;
             html += `<td>${frFmtLiteral(r)}</td>`;
             html += `<td>${frFmtSource(r)}</td>`;
+            html += `<td>${frFmtBucket(r)}</td>`;
             if (i===0) {
               html += `<td rowspan="${rules.length}" style="font-size:0.78rem;color:var(--clay);max-width:240px">${escHtml(rs.note||'')}</td>`;
               html += `<td rowspan="${rules.length}">${actionBtns}</td>`;
@@ -3158,7 +3668,7 @@ function onFrOpChange() {
 }
 
 function _frDefaultValue(configKey) {
-  const map = { data_category:'LG', filter_conditions:'non_inter_data', data_scope_company:'_', data_scope_profit_center:'_' };
+  const map = { data_category:'LG', filter_conditions:'non_inter_data', data_scope_company:'_', data_scope_profit_center:'_', data_scope_dept:'_' };
   return map[configKey] || '_';
 }
 
@@ -3181,6 +3691,8 @@ async function openFrModal(data, presetKey) {
 
   const configKey = data ? data.config_key : (presetKey || 'data_category');
   document.getElementById('frConfigKey').value = configKey;
+  const _meta = FR_META[configKey] || { title: configKey };
+  document.getElementById('frConfigKeyLabelText').textContent = `${_meta.title} (${configKey})`;
   document.getElementById('frConfigValue').value = data ? data.config_value : _frDefaultValue(configKey);
   document.getElementById('frNote').value = data ? (data.note || '') : '';
 
@@ -3217,6 +3729,7 @@ async function openFrModal(data, presetKey) {
     document.getElementById('frLiteralValues').value = '';
   }
   document.getElementById('frValueSource').value = rule ? (rule.value_source || '') : '';
+  document.getElementById('frApplyBucket').value = rule ? (rule.apply_bucket || 'values') : 'values';
 
   onFrOpChange();
   document.getElementById('frModal').classList.add('show');
@@ -3253,6 +3766,7 @@ async function saveFrRule() {
     field: document.getElementById('frField').value,
     op: op,
     value_source: document.getElementById('frValueSource').value || undefined,
+    apply_bucket: document.getElementById('frApplyBucket').value || 'values',
   };
 
   if (!body.table_name) { showDialog('请选择表名'); return; }

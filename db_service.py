@@ -29,6 +29,20 @@ DB_CONFIGS = {
         password="moi_216a042120beaf5cdf357dfbc7a335a29c4b5d6641feeb598da2f3ccd824d342",
         database="moi", charset="utf8mb4", autocommit=True,
     ),
+    "contract_dev": dict(
+        host="freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech",
+        port=6001,
+        user="ws_1c82a8eb:moi_core_system",
+        password="moi_2d76c2c1a5eb95b160e10e0b1dc47109ded45fbc9ad7641d3adcbd07ce09da78",
+        database="moi", charset="utf8mb4", autocommit=True,
+    ),
+    "contract_prod": dict(
+        host="main.mo.shanghai.idc.matrixorigin.cn",
+        port=6001,
+        user="ws_697656b0:u_dc09869eab244203a2b6707147dc5f6c",
+        password="moi_d3f317d3e76788df46ebe3f2e87eaed8bc5f7e469edca63fcec6d972c22cc602",
+        database="moi", charset="utf8mb4", autocommit=True,
+    ),
 }
 
 
@@ -702,12 +716,16 @@ WORKSPACE_LABELS = {
     "local": "Local (Docker)",
     "remote": "问数Dev",
     "portal": "AI Portal",
+    "contract_dev": "合同问询",
+    "contract_prod": "MOI",
 }
 
 WORKSPACE_INFO = {
     "local": {"account": "dump", "host": "127.0.0.1:16001", "database": "moi", "workspace_id": "-", "workspace_name": "local-docker"},
     "remote": {"account": "ws_bf2d347f", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "ws_bf2d347f", "workspace_name": "moi_core_system"},
     "portal": {"account": "ws_bfb9ca8d", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "6a0d513b-9b28-5c5c-0e5f-145427bde36c", "workspace_name": "qa-manual-ws-20260330185108-x9f3k2"},
+    "contract_dev": {"account": "ws_1c82a8eb", "host": "freetier-01.cn-hangzhou.cluster.cn-dev.matrixone.tech:6001", "database": "moi", "workspace_id": "deb09f72-d398-36e6-2dc4-7f4157e7808a", "workspace_name": "合同问询"},
+    "contract_prod": {"account": "ws_697656b0", "host": "main.mo.shanghai.idc.matrixorigin.cn:6001", "database": "moi", "workspace_id": "ws_697656b0", "workspace_name": "MOI"},
 }
 
 
@@ -1126,7 +1144,7 @@ def get_filter_rules(target: str) -> dict:
             cur.execute(
                 "SELECT id, rule_set_id, field, op, literal_value, "
                 "CAST(literal_values AS CHAR) AS literal_values, "
-                "value_source, order_idx "
+                "value_source, order_idx, apply_bucket "
                 "FROM fin_explore_filter_rule ORDER BY rule_set_id, order_idx"
             )
             rules = cur.fetchall()
@@ -1202,6 +1220,10 @@ def save_filter_rule(target: str, data: dict) -> dict:
     data: {id?, config_key, config_value, table_name, note,
            field, op, literal_value?, literal_values?, value_source?}
     """
+    # 防御：必填字段不能为空，避免历史 bug 重现（前端 select 失配会传空值）
+    for k in ("config_key", "config_value", "table_name"):
+        if not (data.get(k) or "").strip():
+            return {"ok": False, "msg": f"{k} 不能为空"}
     conn = _get_jst_conn(target)
     try:
         rule_set_id = data.get("id")
@@ -1242,10 +1264,11 @@ def save_filter_rule(target: str, data: dict) -> dict:
                 cur.execute(
                     "INSERT INTO fin_explore_filter_rule "
                     "(rule_set_id, field, op, literal_value, literal_values, "
-                    "value_source, order_idx) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, 0)",
+                    "value_source, order_idx, apply_bucket) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, 0, %s)",
                     (rule_set_id, field, data.get("op", "eq"),
-                     lit_val, lit_vals, data.get("value_source") or None),
+                     lit_val, lit_vals, data.get("value_source") or None,
+                     data.get("apply_bucket") or "values"),
                 )
             conn.commit()
         return {"ok": True, "id": rule_set_id}
@@ -1772,7 +1795,7 @@ def compare_filter_rules(ws_a: str, ws_b: str) -> dict:
                 cur.execute(
                     f"SELECT rule_set_id, field, op, literal_value, "
                     f"CAST(literal_values AS CHAR) AS literal_values, "
-                    f"value_source, order_idx "
+                    f"value_source, order_idx, apply_bucket "
                     f"FROM fin_explore_filter_rule WHERE rule_set_id IN ({placeholders}) "
                     f"ORDER BY rule_set_id, order_idx",
                     set_ids
@@ -1809,6 +1832,7 @@ def compare_filter_rules(ws_a: str, ws_b: str) -> dict:
                 _norm_jsonish(r.get("literal_values")),
                 _norm_jsonish(r.get("value_source")),
                 r.get("order_idx") or 0,
+                _norm_jsonish(r.get("apply_bucket")),
             )
 
         for k in all_keys:
@@ -1840,6 +1864,7 @@ def compare_filter_rules(ws_a: str, ws_b: str) -> dict:
                             "a_literals": ia.get("literal_values") or "",
                             "a_source": ia.get("value_source") or "",
                             "a_order": ia.get("order_idx") or 0,
+                            "a_bucket": ia.get("apply_bucket") or "",
                         })
                     elif ib and not ia:
                         rule_diffs.append({
@@ -1849,6 +1874,7 @@ def compare_filter_rules(ws_a: str, ws_b: str) -> dict:
                             "b_literals": ib.get("literal_values") or "",
                             "b_source": ib.get("value_source") or "",
                             "b_order": ib.get("order_idx") or 0,
+                            "b_bucket": ib.get("apply_bucket") or "",
                         })
                     elif rule_content(ia) != rule_content(ib):
                         rule_diffs.append({
@@ -1862,10 +1888,13 @@ def compare_filter_rules(ws_a: str, ws_b: str) -> dict:
                             "b_source": ib.get("value_source") or "",
                             "a_order": ia.get("order_idx") or 0,
                             "b_order": ib.get("order_idx") or 0,
+                            "a_bucket": ia.get("apply_bucket") or "",
+                            "b_bucket": ib.get("apply_bucket") or "",
                             "literal_diff": _norm_jsonish(ia.get("literal_value")) != _norm_jsonish(ib.get("literal_value")),
                             "literals_diff": _norm_jsonish(ia.get("literal_values")) != _norm_jsonish(ib.get("literal_values")),
                             "source_diff": _norm_jsonish(ia.get("value_source")) != _norm_jsonish(ib.get("value_source")),
                             "order_diff": (ia.get("order_idx") or 0) != (ib.get("order_idx") or 0),
+                            "bucket_diff": _norm_jsonish(ia.get("apply_bucket")) != _norm_jsonish(ib.get("apply_bucket")),
                         })
 
                 meta_diffs = {}
@@ -1929,7 +1958,7 @@ def migrate_filter_rules(source: str, target: str, overwrite: bool = False) -> d
             cur.execute(
                 "SELECT id, rule_set_id, field, op, literal_value, "
                 "CAST(literal_values AS CHAR) AS literal_values, "
-                "value_source, order_idx "
+                "value_source, order_idx, apply_bucket "
                 "FROM fin_explore_filter_rule ORDER BY id"
             )
             rules = cur.fetchall()
@@ -1962,10 +1991,11 @@ def migrate_filter_rules(source: str, target: str, overwrite: bool = False) -> d
                 cur.execute(
                     "INSERT INTO fin_explore_filter_rule "
                     "(rule_set_id, field, op, literal_value, literal_values, "
-                    "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    "value_source, order_idx, apply_bucket) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                     (new_sid, r["field"], r["op"],
                      r.get("literal_value"), r.get("literal_values"),
-                     r.get("value_source"), r.get("order_idx") or 0)
+                     r.get("value_source"), r.get("order_idx") or 0,
+                     r.get("apply_bucket") or "values")
                 )
                 r_ok += 1
 
@@ -2058,7 +2088,7 @@ def apply_filter_rule_set_full(source: str, target: str,
                 cur.execute(
                     "SELECT field, op, literal_value, "
                     "CAST(literal_values AS CHAR) AS literal_values, "
-                    "value_source, order_idx "
+                    "value_source, order_idx, apply_bucket "
                     "FROM fin_explore_filter_rule WHERE rule_set_id=%s ORDER BY order_idx",
                     (ss["id"],)
                 )
@@ -2089,10 +2119,11 @@ def apply_filter_rule_set_full(source: str, target: str,
                     cur.execute(
                         "INSERT INTO fin_explore_filter_rule "
                         "(rule_set_id, field, op, literal_value, literal_values, "
-                        "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        "value_source, order_idx, apply_bucket) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                         (new_sid, r["field"], r["op"],
                          r.get("literal_value"), r.get("literal_values"),
-                         r.get("value_source"), r.get("order_idx") or 0)
+                         r.get("value_source"), r.get("order_idx") or 0,
+                         r.get("apply_bucket") or "values")
                     )
             return {"ok": True, "action": "inserted", "rules_count": len(src_rules)}
 
@@ -2116,10 +2147,11 @@ def apply_filter_rule_set_full(source: str, target: str,
                 cur.execute(
                     "INSERT INTO fin_explore_filter_rule "
                     "(rule_set_id, field, op, literal_value, literal_values, "
-                    "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    "value_source, order_idx, apply_bucket) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                     (ds["id"], r["field"], r["op"],
                      r.get("literal_value"), r.get("literal_values"),
-                     r.get("value_source"), r.get("order_idx") or 0)
+                     r.get("value_source"), r.get("order_idx") or 0,
+                     r.get("apply_bucket") or "values")
                 )
         return {"ok": True, "action": "replaced",
                 "rules_count": len(src_rules), "deleted_rules": old_rules}
@@ -2155,7 +2187,7 @@ def apply_filter_rule(source: str, target: str,
                 cur.execute(
                     "SELECT field, op, literal_value, "
                     "CAST(literal_values AS CHAR) AS literal_values, "
-                    "value_source, order_idx FROM fin_explore_filter_rule "
+                    "value_source, order_idx, apply_bucket FROM fin_explore_filter_rule "
                     "WHERE rule_set_id=%s AND field=%s AND op=%s",
                     (ss["id"], field, op)
                 )
@@ -2181,9 +2213,10 @@ def apply_filter_rule(source: str, target: str,
             if src_rule and dst_rule:
                 cur.execute(
                     "UPDATE fin_explore_filter_rule SET literal_value=%s, literal_values=%s, "
-                    "value_source=%s, order_idx=%s WHERE id=%s",
+                    "value_source=%s, order_idx=%s, apply_bucket=%s WHERE id=%s",
                     (src_rule.get("literal_value"), src_rule.get("literal_values"),
                      src_rule.get("value_source"), src_rule.get("order_idx") or 0,
+                     src_rule.get("apply_bucket") or "values",
                      dst_rule["id"])
                 )
                 action = "updated"
@@ -2191,10 +2224,11 @@ def apply_filter_rule(source: str, target: str,
                 cur.execute(
                     "INSERT INTO fin_explore_filter_rule "
                     "(rule_set_id, field, op, literal_value, literal_values, "
-                    "value_source, order_idx) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    "value_source, order_idx, apply_bucket) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                     (ds["id"], field, op, src_rule.get("literal_value"),
                      src_rule.get("literal_values"), src_rule.get("value_source"),
-                     src_rule.get("order_idx") or 0)
+                     src_rule.get("order_idx") or 0,
+                     src_rule.get("apply_bucket") or "values")
                 )
                 action = "inserted"
             elif not src_rule and dst_rule:
